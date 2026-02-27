@@ -1,11 +1,11 @@
-﻿using Styly.Configuration;
+using Styly.Configuration;
 
 namespace Styly.Tests;
 
 public class RawStringIsolationTests : FormatterTestBase
 {
     [Fact]
-    public void Isolation_MultiLineVerbatim_ConvertsAndIsolates()
+    public static void Isolation_MultiLineVerbatim_ConvertsAndIsolates()
     {
         // Use 4 quotes for the outer delimiter because the content contains 3 quotes.
         string input = """
@@ -40,7 +40,7 @@ public class RawStringIsolationTests : FormatterTestBase
     }
 
     [Fact]
-    public void Isolation_SingleLineStandard_DoesNotIsolate()
+    public static void Isolation_SingleLineStandard_DoesNotIsolate()
     {
         string input = """
             void M()
