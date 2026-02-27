@@ -10,18 +10,18 @@ public class UsingsTests : FormatterTestBase
     {
         string input = """
 
-                using Styly;
-                using System.Linq;
-                using System;
-                using Xunit;
+                    using Styly;
+                    using System.Linq;
+                    using System;
+                    using Xunit;
 
         """;
         string expected = """
 
-                using System;
-                using System.Linq;
-                using Styly;
-                using Xunit;
+                    using System;
+                    using System.Linq;
+                    using Styly;
+                    using Xunit;
 
         """;
 
@@ -41,18 +41,18 @@ public class UsingsTests : FormatterTestBase
     {
         string input = """
 
-                using System.Text;
-                using System;
-                namespace MyTestApp;
+                    using System.Text;
+                    using System;
+                    namespace MyTestApp;
 
         """;
         // Expect a blank line between usings and namespace
         string expected = """
 
-                using System;
-                using System.Text;
+                    using System;
+                    using System.Text;
 
-                namespace MyTestApp;
+                    namespace MyTestApp;
 
         """;
 

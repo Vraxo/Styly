@@ -18,23 +18,23 @@ public class ModifiersTests : FormatterTestBase
         // Method using only locals should become static.
         string input = """
 
-                class C
-                {
-                    void M()
+                    class C
                     {
-                        int x = 1;
+                        void M()
+                        {
+                            int x = 1;
+                        }
                     }
-                }
         """;
         string expected = """
 
-                class C
-                {
-                    static void M()
+                    class C
                     {
-                        int x = 1;
+                        static void M()
+                        {
+                            int x = 1;
+                        }
                     }
-                }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -45,23 +45,23 @@ public class ModifiersTests : FormatterTestBase
         // Method using parameters (but no instance data) should become static.
         string input = """
 
-                class C
-                {
-                    int Add(int a, int b)
+                    class C
                     {
-                        return a + b;
+                        int Add(int a, int b)
+                        {
+                            return a + b;
+                        }
                     }
-                }
         """;
         string expected = """
 
-                class C
-                {
-                    static int Add(int a, int b)
+                    class C
                     {
-                        return a + b;
+                        static int Add(int a, int b)
+                        {
+                            return a + b;
+                        }
                     }
-                }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -72,25 +72,25 @@ public class ModifiersTests : FormatterTestBase
         // Accessing a member on *another* instance (param) is fine.
         string input = """
 
-                class C
-                {
-                    public int Val;
-                    void Update(C other)
+                    class C
                     {
-                        other.Val = 5;
+                        public int Val;
+                        void Update(C other)
+                        {
+                            other.Val = 5;
+                        }
                     }
-                }
         """;
         string expected = """
 
-                class C
-                {
-                    public int Val;
-                    static void Update(C other)
+                    class C
                     {
-                        other.Val = 5;
+                        public int Val;
+                        static void Update(C other)
+                        {
+                            other.Val = 5;
+                        }
                     }
-                }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -101,25 +101,25 @@ public class ModifiersTests : FormatterTestBase
         // Accessing a static field of the class is fine.
         string input = """
 
-                class C
-                {
-                    static int Global = 0;
-                    void M()
+                    class C
                     {
-                        Global++;
+                        static int Global = 0;
+                        void M()
+                        {
+                            Global++;
+                        }
                     }
-                }
         """;
         string expected = """
 
-                class C
-                {
-                    static int Global = 0;
-                    static void M()
+                    class C
                     {
-                        Global++;
+                        static int Global = 0;
+                        static void M()
+                        {
+                            Global++;
+                        }
                     }
-                }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -130,25 +130,25 @@ public class ModifiersTests : FormatterTestBase
         // Implicit 'this.Field' access -> Should NOT be static.
         string input = """
 
-                class C
-                {
-                    int _f;
-                    void M()
+                    class C
                     {
-                        _f = 1;
+                        int _f;
+                        void M()
+                        {
+                            _f = 1;
+                        }
                     }
-                }
         """;
         string expected = """
 
-                class C
-                {
-                    int _f;
-                    void M()
+                    class C
                     {
-                        _f = 1;
+                        int _f;
+                        void M()
+                        {
+                            _f = 1;
+                        }
                     }
-                }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -159,29 +159,29 @@ public class ModifiersTests : FormatterTestBase
         // Accessing base member -> Should NOT be static.
         string input = """
 
-                class Base { public int B; }
-                class C : Base
-                {
-                    void M()
+                    class Base { public int B; }
+                    class C : Base
                     {
-                        B = 2;
+                        void M()
+                        {
+                            B = 2;
+                        }
                     }
-                }
         """;
         string expected = """
 
-                class Base
-                {
-                    public int B;
-                }
-
-                class C : Base
-                {
-                    void M()
+                    class Base
                     {
-                        B = 2;
+                        public int B;
                     }
-                }
+
+                    class C : Base
+                    {
+                        void M()
+                        {
+                            B = 2;
+                        }
+                    }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -191,23 +191,23 @@ public class ModifiersTests : FormatterTestBase
     {
         string input = """
 
-                class C
-                {
-                    void M()
+                    class C
                     {
-                        var t = this;
+                        void M()
+                        {
+                            var t = this;
+                        }
                     }
-                }
         """;
         string expected = """
 
-                class C
-                {
-                    void M()
+                    class C
                     {
-                        var t = this;
+                        void M()
+                        {
+                            var t = this;
+                        }
                     }
-                }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -218,19 +218,19 @@ public class ModifiersTests : FormatterTestBase
         // Virtual methods cannot be static.
         string input = """
 
-                class C
-                {
-                    public virtual void M() { }
-                }
+                    class C
+                    {
+                        public virtual void M() { }
+                    }
         """;
         string expected = """
 
-                class C
-                {
-                    public virtual void M()
+                    class C
                     {
+                        public virtual void M()
+                        {
+                        }
                     }
-                }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -241,25 +241,25 @@ public class ModifiersTests : FormatterTestBase
         // Explicit interface implementation cannot be static.
         string input = """
 
-                interface I { void M(); }
-                class C : I
-                {
-                    void I.M() { }
-                }
+                    interface I { void M(); }
+                    class C : I
+                    {
+                        void I.M() { }
+                    }
         """;
         string expected = """
 
-                interface I
-                {
-                    void M();
-                }
-
-                class C : I
-                {
-                    void I.M()
+                    interface I
                     {
+                        void M();
                     }
-                }
+
+                    class C : I
+                    {
+                        void I.M()
+                        {
+                        }
+                    }
         """;
         AssertFormatting(input, expected, _options);
     }
@@ -270,19 +270,19 @@ public class ModifiersTests : FormatterTestBase
         // Should insert 'static' after 'public'.
         string input = """
 
-                class C
-                {
-                    public void M() { }
-                }
+                    class C
+                    {
+                        public void M() { }
+                    }
         """;
         string expected = """
 
-                class C
-                {
-                    public static void M()
+                    class C
                     {
+                        public static void M()
+                        {
+                        }
                     }
-                }
         """;
         AssertFormatting(input, expected, _options);
     }
