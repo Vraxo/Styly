@@ -7,7 +7,9 @@ internal class TokenSpacingCleanupRewriter : CSharpSyntaxRewriter
 {
     public override SyntaxNode? Visit(SyntaxNode? node)
     {
-        return node == null ? null : CleanupTokenSpacing(node);
+        return node == null
+            ? null
+            : CleanupTokenSpacing(node);
     }
 
     private static SyntaxNode CleanupTokenSpacing(SyntaxNode root)
@@ -26,7 +28,9 @@ internal class TokenSpacingCleanupRewriter : CSharpSyntaxRewriter
             }
         }
 
-        return replacements.Count != 0 ? root.ReplaceTokens(replacements.Keys, (original, _) => replacements[original]) : root;
+        return replacements.Count != 0
+            ? root.ReplaceTokens(replacements.Keys, (original, _) => replacements[original])
+            : root;
     }
 
     private static bool IsUnwantedSpaceAfterBrace(SyntaxToken prev, SyntaxToken current)
@@ -46,7 +50,9 @@ internal class TokenSpacingCleanupRewriter : CSharpSyntaxRewriter
 
     private static SyntaxToken RemoveLeadingWhitespace(SyntaxToken token)
     {
-        return token.LeadingTrivia.Any(t => t.IsKind(SyntaxKind.WhitespaceTrivia)) ? token.WithLeadingTrivia(GetNonWhitespaceTrivia(token.LeadingTrivia)) : token;
+        return token.LeadingTrivia.Any(t => t.IsKind(SyntaxKind.WhitespaceTrivia))
+            ? token.WithLeadingTrivia(GetNonWhitespaceTrivia(token.LeadingTrivia))
+            : token;
     }
 
     private static SyntaxTriviaList GetNonWhitespaceTrivia(SyntaxTriviaList trivia)

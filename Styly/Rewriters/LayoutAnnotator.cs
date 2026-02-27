@@ -84,17 +84,23 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
     // --- Visitor Overrides ---
     public override SyntaxNode? VisitInitializerExpression(InitializerExpressionSyntax node)
     {
-        return IsSingleLine(node) ? base.VisitInitializerExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(SingleLineAnnotationKind)) : base.VisitInitializerExpression(node);
+        return IsSingleLine(node)
+            ? base.VisitInitializerExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(SingleLineAnnotationKind))
+            : base.VisitInitializerExpression(node);
     }
 
     public override SyntaxNode? VisitCollectionExpression(CollectionExpressionSyntax node)
     {
-        return IsSingleLine(node) ? base.VisitCollectionExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(SingleLineAnnotationKind)) : base.VisitCollectionExpression(node);
+        return IsSingleLine(node)
+            ? base.VisitCollectionExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(SingleLineAnnotationKind))
+            : base.VisitCollectionExpression(node);
     }
 
     public override SyntaxNode? VisitAnonymousObjectCreationExpression(AnonymousObjectCreationExpressionSyntax node)
     {
-        return IsSingleLine(node) ? base.VisitAnonymousObjectCreationExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(SingleLineAnnotationKind)) : base.VisitAnonymousObjectCreationExpression(node);
+        return IsSingleLine(node)
+            ? base.VisitAnonymousObjectCreationExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(SingleLineAnnotationKind))
+            : base.VisitAnonymousObjectCreationExpression(node);
     }
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)

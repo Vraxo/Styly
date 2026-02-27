@@ -116,7 +116,9 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
 
         MemberDeclarationSyntax newFirstMember = EnsureBlankLine(lastUsing, firstMember);
 
-        return newFirstMember != firstMember ? withMembers(node, members.Replace(firstMember, newFirstMember)) : node;
+        return newFirstMember != firstMember
+            ? withMembers(node, members.Replace(firstMember, newFirstMember))
+            : node;
     }
 
     private SyntaxList<T> ProcessList<T>(SyntaxList<T> items, Func<T, StatementSyntax?> getStatement)
@@ -160,7 +162,9 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
 
     private static StatementSyntax? GetStatement(MemberDeclarationSyntax member)
     {
-        return member is GlobalStatementSyntax global ? global.Statement : null;
+        return member is GlobalStatementSyntax global
+            ? global.Statement
+            : null;
     }
 
     private static bool IsControlFlowStatement(StatementSyntax statement)
@@ -197,7 +201,9 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
 
         int newlineCount = CountEndingNewlines(prevTrailing) + CountStartingNewlines(currLeading);
 
-        return newlineCount < 2 ? curr.WithLeadingTrivia(currLeading.Insert(0, SyntaxFactory.CarriageReturnLineFeed)) : curr;
+        return newlineCount < 2
+            ? curr.WithLeadingTrivia(currLeading.Insert(0, SyntaxFactory.CarriageReturnLineFeed))
+            : curr;
     }
 
     private static int CountEndingNewlines(SyntaxTriviaList trivia)

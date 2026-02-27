@@ -20,7 +20,9 @@ public class TrailingTriviaTrimmer : CSharpSyntaxRewriter
         IEnumerable<SyntaxTrivia> triviaToKeep = lastToken.TrailingTrivia.Take(lastSignificantIndex + 1);
         SyntaxTriviaList newTrailingTrivia = SyntaxFactory.TriviaList(triviaToKeep);
 
-        return newTrailingTrivia.SequenceEqual(lastToken.TrailingTrivia) ? node : node.ReplaceToken(lastToken, lastToken.WithTrailingTrivia(newTrailingTrivia));
+        return newTrailingTrivia.SequenceEqual(lastToken.TrailingTrivia)
+            ? node
+            : node.ReplaceToken(lastToken, lastToken.WithTrailingTrivia(newTrailingTrivia));
     }
 
     private static int GetLastSignificantTriviaIndex(SyntaxTriviaList trailingTrivia)

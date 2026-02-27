@@ -12,4 +12,5 @@ public class FormatOptions
     public SpacingOptions Spacing { get; set; } = new();
     public ModifiersOptions Modifiers { get; set; } = new();
     public OptimizationOptions Optimization { get; set; } = new();
+    public TernaryOptions Ternary { get; set; } = new();
 }

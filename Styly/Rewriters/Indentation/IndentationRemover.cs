@@ -21,7 +21,9 @@ internal class IndentationRemover : CSharpSyntaxRewriter
     {
         int lastNewlineIndex = FindLastNewlineIndex(trivia);
 
-        return lastNewlineIndex != -1 ? ReduceIndentationAfterNewline(trivia, lastNewlineIndex) : ReduceIndentationAtStart(trivia);
+        return lastNewlineIndex != -1
+            ? ReduceIndentationAfterNewline(trivia, lastNewlineIndex)
+            : ReduceIndentationAtStart(trivia);
     }
 
     private static int FindLastNewlineIndex(SyntaxTriviaList trivia)
@@ -48,7 +50,9 @@ internal class IndentationRemover : CSharpSyntaxRewriter
 
         SyntaxTrivia candidate = trivia[indentIndex];
 
-        return candidate.IsKind(SyntaxKind.WhitespaceTrivia) ? trivia.Replace(candidate, ReduceWhitespace(candidate)) : trivia;
+        return candidate.IsKind(SyntaxKind.WhitespaceTrivia)
+            ? trivia.Replace(candidate, ReduceWhitespace(candidate))
+            : trivia;
     }
 
     private static SyntaxTriviaList ReduceIndentationAtStart(SyntaxTriviaList trivia)
@@ -60,13 +64,17 @@ internal class IndentationRemover : CSharpSyntaxRewriter
 
         SyntaxTrivia firstTrivia = trivia.First();
 
-        return firstTrivia.IsKind(SyntaxKind.WhitespaceTrivia) ? trivia.Replace(firstTrivia, ReduceWhitespace(firstTrivia)) : trivia;
+        return firstTrivia.IsKind(SyntaxKind.WhitespaceTrivia)
+            ? trivia.Replace(firstTrivia, ReduceWhitespace(firstTrivia))
+            : trivia;
     }
 
     private static SyntaxTrivia ReduceWhitespace(SyntaxTrivia whitespace)
     {
         string text = whitespace.ToString();
-        string newText = text.Length >= IndentSize ? text[IndentSize..] : string.Empty;
+        string newText = text.Length >= IndentSize
+            ? text[IndentSize..]
+            : string.Empty;
 
         return SyntaxFactory.Whitespace(newText);
     }

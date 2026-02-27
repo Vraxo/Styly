@@ -69,7 +69,9 @@ internal static class InitializerFormatter
     public static TNode StripPrecedingTrivia<TNode>(TNode node)
         where TNode : SyntaxNode
     {
-        return node is ObjectCreationExpressionSyntax oce ? (TNode)(object)(oce.ArgumentList != null ? oce.WithArgumentList(oce.ArgumentList.WithoutTrailingTrivia()) : oce.WithType(oce.Type.WithoutTrailingTrivia())) : node is ImplicitObjectCreationExpressionSyntax ioce ? (TNode)(object)ioce.WithArgumentList(ioce.ArgumentList.WithoutTrailingTrivia()) : node is ArrayCreationExpressionSyntax ace ? (TNode)(object)ace.WithType(ace.Type.WithoutTrailingTrivia()) : node is ImplicitArrayCreationExpressionSyntax iace ? (TNode)(object)iace.WithCloseBracketToken(iace.CloseBracketToken.WithTrailingTrivia(SyntaxFactory.TriviaList())) : node;
+        return node is ObjectCreationExpressionSyntax oce
+            ? (TNode)(object)(oce.ArgumentList != null ? oce.WithArgumentList(oce.ArgumentList.WithoutTrailingTrivia()) : oce.WithType(oce.Type.WithoutTrailingTrivia()))
+            : node is ImplicitObjectCreationExpressionSyntax ioce ? (TNode)(object)ioce.WithArgumentList(ioce.ArgumentList.WithoutTrailingTrivia()) : node is ArrayCreationExpressionSyntax ace ? (TNode)(object)ace.WithType(ace.Type.WithoutTrailingTrivia()) : node is ImplicitArrayCreationExpressionSyntax iace ? (TNode)(object)iace.WithCloseBracketToken(iace.CloseBracketToken.WithTrailingTrivia(SyntaxFactory.TriviaList())) : node;
     }
 
     public static SyntaxToken FormatOpenBraceSingleLine(SyntaxToken openBrace)

@@ -14,7 +14,9 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
         bool isSystemA = nameA.StartsWith("System");
         bool isSystemB = nameB.StartsWith("System");
 
-        return isSystemA != isSystemB ? isSystemA ? -1 : 1 : string.Compare(nameA, nameB, StringComparison.Ordinal);
+        return isSystemA != isSystemB
+            ? isSystemA ? -1 : 1
+            : string.Compare(nameA, nameB, StringComparison.Ordinal);
     }
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)
@@ -87,7 +89,9 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
             // B. Set Trailing Newlines
             // Last item gets 2 newlines (blank line separator).
             // All other items get 1 newline (standard list).
-            int requiredNewlines = (i == sortedList.Count - 1) ? 2 : 1;
+            int requiredNewlines = (i == sortedList.Count - 1)
+                ? 2
+                : 1;
             current = SetTrailingNewlines(current, requiredNewlines);
 
             sortedList[i] = current;

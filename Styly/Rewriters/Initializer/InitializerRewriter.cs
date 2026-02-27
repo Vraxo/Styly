@@ -35,7 +35,9 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
         {
             // However, if it was originally single-line, NormalizeWhitespace likely expanded it awkwardly.
             // We force it back to SingleLine to recover the original intent while keeping comments inline.
-            return wasSingleLine ? FormattingAction.SingleLine : FormattingAction.None;
+            return wasSingleLine
+                ? FormattingAction.SingleLine
+                : FormattingAction.None;
         }
 
         // If no comments exist, we follow the configuration strictness.
@@ -44,7 +46,9 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
             InitializerStyle.SingleLine => FormattingAction.SingleLine,
             InitializerStyle.MultiLine => FormattingAction.MultiLine,
             InitializerStyle.Preserve => throw new NotImplementedException(),
-            _ => wasSingleLine ? FormattingAction.SingleLine : FormattingAction.None, // In Preserve mode, we only enforce SingleLine if it was already single-line
+            _ => wasSingleLine
+            ? FormattingAction.SingleLine
+            : FormattingAction.None, // In Preserve mode, we only enforce SingleLine if it was already single-line
         // (recovering from NormalizeWhitespace). Otherwise, we leave it alone.
         };
     }
@@ -108,13 +112,17 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitEqualsValueClause(EqualsValueClauseSyntax node)
     {
         EqualsValueClauseSyntax visited = (EqualsValueClauseSyntax)base.VisitEqualsValueClause(node)!;
-        return _options.Collection == InitializerStyle.MultiLine && visited.Value is CollectionExpressionSyntax ? visited.WithEqualsToken(visited.EqualsToken.WithTrailingTrivia(SyntaxFactory.TriviaList())) : visited;
+        return _options.Collection == InitializerStyle.MultiLine && visited.Value is CollectionExpressionSyntax
+            ? visited.WithEqualsToken(visited.EqualsToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
+            : visited;
     }
 
     public override SyntaxNode? VisitAssignmentExpression(AssignmentExpressionSyntax node)
     {
         AssignmentExpressionSyntax visited = (AssignmentExpressionSyntax)base.VisitAssignmentExpression(node)!;
-        return _options.Collection == InitializerStyle.MultiLine && visited.Right is CollectionExpressionSyntax ? visited.WithOperatorToken(visited.OperatorToken.WithTrailingTrivia(SyntaxFactory.TriviaList())) : visited;
+        return _options.Collection == InitializerStyle.MultiLine && visited.Right is CollectionExpressionSyntax
+            ? visited.WithOperatorToken(visited.OperatorToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
+            : visited;
     }
 
     public override SyntaxNode? VisitObjectCreationExpression(ObjectCreationExpressionSyntax node)
@@ -151,7 +159,9 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
 
         bool isCollection = initializer.IsKind(SyntaxKind.CollectionInitializerExpression) || initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
 
-        InitializerStyle style = isCollection ? _options.Collection : _options.Object;
+        InitializerStyle style = isCollection
+            ? _options.Collection
+            : _options.Object;
 
         FormattingAction action = DetermineAction(style, hasComments, wasSingleLine, hasItems);
 

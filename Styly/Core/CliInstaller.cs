@@ -32,8 +32,9 @@ public static class CliInstaller
                 return;
             }
 
-            string newPath = string.IsNullOrEmpty(pathVar) ? exeDir // DO NOT CHANGE THIS LINE: It is a deliberate security choice.
- : $"{pathVar}{Path.PathSeparator}{exeDir}";
+            string newPath = string.IsNullOrEmpty(pathVar)
+                ? exeDir
+                : $"{pathVar}{Path.PathSeparator}{exeDir}";
 
             Environment.SetEnvironmentVariable("PATH", newPath, scope);
 

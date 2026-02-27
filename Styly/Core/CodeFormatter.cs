@@ -29,7 +29,7 @@ public static class CodeFormatter
     public static async Task<string> ReformatScriptAsync(string sourceText, FormatOptions formatOptions)
     {
         using AdhocWorkspace workspace = new();
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Select(path => MetadataReference.CreateFromFile(path));
+        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Where(path => !string.IsNullOrEmpty(path) && File.Exists(path)).Select(path => MetadataReference.CreateFromFile(path));
 
         Project project = workspace.AddProject("ScriptProject", LanguageNames.CSharp).WithMetadataReferences(references);
 
@@ -61,7 +61,9 @@ public static class CodeFormatter
         if (options.Variables?.UseVar != null)
         {
             (SemanticModel? model, SyntaxNode? root) = await GetCtx();
-            SyntaxNode newRoot = options.Variables.UseVar == UseVarOption.Never ? new VarToExplicitTypeRewriter(model).Visit(root) : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
+            SyntaxNode newRoot = options.Variables.UseVar == UseVarOption.Never
+                ? new VarToExplicitTypeRewriter(model).Visit(root)
+                : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
             document = document.WithSyntaxRoot(newRoot);
         }
 
@@ -86,7 +88,7 @@ public static class CodeFormatter
         if (options.Usings.RemoveUnused)
         {
             (SemanticModel? model, SyntaxNode? root) = await GetCtx();
-            IEnumerable<UsingDirectiveSyntax> unused = model.GetDiagnostics().Where(d => d.Id == "CS8019").Select(d => root.FindNode(d.Location.SourceSpan)).OfType<Microsoft.CodeAnalysis.CSharp.Syntax.UsingDirectiveSyntax>();
+            IEnumerable<UsingDirectiveSyntax> unused = model.GetDiagnostics().Where(d => d.Id == "CS8019").Select(d => root.FindNode(d.Location.SourceSpan)).OfType<UsingDirectiveSyntax>();
 
             if (unused.Any())
             {
@@ -101,6 +103,7 @@ public static class CodeFormatter
     {
         root = new NamespaceRewriter(options.Namespace).Visit(root);
         root = new InitializerRewriter(options.Initializers).Visit(root);
+        root = new TernaryRewriter(options.Ternary).Visit(root);
         root = new BlankLineRewriter(options.Spacing).Visit(root);
 
         if (options.Usings.Sort == UsingSortOrder.Alphabetical)

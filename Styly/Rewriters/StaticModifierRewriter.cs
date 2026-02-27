@@ -14,7 +14,9 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
-        return node.Body == null && node.ExpressionBody == null ? base.VisitMethodDeclaration(node) : node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword) || m.IsKind(SyntaxKind.AbstractKeyword) || m.IsKind(SyntaxKind.VirtualKeyword) || m.IsKind(SyntaxKind.OverrideKeyword) || m.IsKind(SyntaxKind.NewKeyword) || m.IsKind(SyntaxKind.PartialKeyword)) ? base.VisitMethodDeclaration(node) : node.ExplicitInterfaceSpecifier != null ? base.VisitMethodDeclaration(node) : AccessesInstanceData(node) || IsInterfaceImplementation(node) ? base.VisitMethodDeclaration(node) : MakeStatic(node);
+        return node.Body == null && node.ExpressionBody == null
+            ? base.VisitMethodDeclaration(node)
+            : node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword) || m.IsKind(SyntaxKind.AbstractKeyword) || m.IsKind(SyntaxKind.VirtualKeyword) || m.IsKind(SyntaxKind.OverrideKeyword) || m.IsKind(SyntaxKind.NewKeyword) || m.IsKind(SyntaxKind.PartialKeyword)) ? base.VisitMethodDeclaration(node) : node.ExplicitInterfaceSpecifier != null ? base.VisitMethodDeclaration(node) : AccessesInstanceData(node) || IsInterfaceImplementation(node) ? base.VisitMethodDeclaration(node) : MakeStatic(node);
     }
 
     private bool IsInterfaceImplementation(MethodDeclarationSyntax node)
@@ -155,17 +157,19 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
     private static bool IsMemberAccessOnOtherInstance(IdentifierNameSyntax identifier)
     {
         // Check if this identifier is the 'Name' part of a MemberAccessExpression (e.g. "other.Name")
-        if (identifier.Parent is MemberAccessExpressionSyntax memberAccess && memberAccess.Name == identifier)
+        if (identifier.Parent is not MemberAccessExpressionSyntax memberAccess || memberAccess.Name != identifier)
         {
-            // If the expression on the left (Expression) is NOT 'this' or 'base' (explicitly or implicitly),
-            // then it's access on a different object.
-            if (memberAccess.Expression is not ThisExpressionSyntax and not BaseExpressionSyntax)
-            {
-                // It's something like "obj.Prop". 
-                // CAUTION: If "obj" itself resolves to an instance field of 'this', checking "obj" in the loop
-                // will catch it. So we can safely ignore the "Prop" part here.
-                return true;
-            }
+            return false;
+        }
+
+        // If the expression on the left (Expression) is NOT 'this' or 'base' (explicitly or implicitly),
+        // then it's access on a different object.
+        if (memberAccess.Expression is not ThisExpressionSyntax and not BaseExpressionSyntax)
+        {
+            // It's something like "obj.Prop". 
+            // CAUTION: If "obj" itself resolves to an instance field of 'this', checking "obj" in the loop
+            // will catch it. So we can safely ignore the "Prop" part here.
+            return true;
         }
 
         return false;

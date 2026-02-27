@@ -11,6 +11,8 @@ Format:
     Object: MultiLine
     Collection: SingleLine
     AnonymousType: MultiLine
+  Ternary:
+    Style: MultiLine
   Spacing:
     EmptyLineBeforeControlFlow: true
     EmptyLineAfterControlFlow: true
