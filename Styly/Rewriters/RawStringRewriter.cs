@@ -24,16 +24,8 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
             return base.VisitLiteralExpression(node);
         }
 
-        // CRITICAL: Do not process existing raw strings.
-        // Re-processing raw strings changes their semantic value by baking in current indentation.
-        if (node.Token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken) 
-            || node.Token.IsKind(SyntaxKind.SingleLineRawStringLiteralToken))
-        {
-            return base.VisitLiteralExpression(node);
-        }
-
         string value = node.Token.ValueText;
-        // Only convert if the string contains actual newline characters
+        // "Truly Multiline" check: must contain a newline
         return !value.Contains('\n') 
             && !value.Contains('\r')
             ? base.VisitLiteralExpression(node)
@@ -42,20 +34,18 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
     private static SyntaxNode ConvertToRawString(LiteralExpressionSyntax node, string value)
     {
-        // 1. Determine delimiter depth (min 3 quotes)
+        // 1. Determine how many quotes we need (minimum 3)
         int maxSequentialQuotes = GetMaxSequentialQuotes(value);
 
         int quotesNeeded = Math.Max(3, maxSequentialQuotes + 1);
         string delimiter = new('"', quotesNeeded);
-        // 2. Get statement indentation to align the delimiter
+        // 2. Get indentation
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
 
         string indentStr = parentIndent.ToString();
         string contentIndent = indentStr + new string (' ', IndentSize);
-        // 3. Construct the raw string block
-        // The closing delimiter must be aligned with the parent statement.
-        // The content lines are indented relative to that delimiter.
-        string[] lines = MyRegex1().Split(value);
+        // 3. Format lines
+        string[] lines = MyRegex().Split(value);
 
         StringBuilder sb = new();
         _ = sb.AppendLine(delimiter);
@@ -75,7 +65,9 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
         _ = sb.Append(indentStr);
         _ = sb.Append(delimiter);
-        // 4. Parse the generated text into a valid RawStringLiteralToken
+        // 4. Create the new token
+        // We use ParseToken because constructing a RawStringLiteralToken manually is complex 
+        // and requires internal Roslyn bits or very specific factory calls.
         SyntaxToken rawToken = SyntaxFactory.ParseToken(sb.ToString());
 
         return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, rawToken).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
@@ -122,5 +114,5 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
     }
 
     [GeneratedRegex(@"\r?\n")]
-    private static partial Regex MyRegex1();
+    private static partial Regex MyRegex();
 }

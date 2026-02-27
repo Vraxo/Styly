@@ -9,20 +9,20 @@ public class NullCheckPatternTests : FormatterTestBase
     {
         string input = """
 
-                            void M(object x)
-                            {
-                                if (x == null) { }
-                            }
+                    void M(object x)
+                    {
+                        if (x == null) { }
+                    }
         """;
 
         string expected = """
 
-                            void M(object x)
-                            {
-                                if (x is null)
-                                {
-                                }
-                            }
+                    void M(object x)
+                    {
+                        if (x is null)
+                        {
+                        }
+                    }
         """;
 
         FormatOptions options = new();
@@ -36,20 +36,20 @@ public class NullCheckPatternTests : FormatterTestBase
     {
         string input = """
 
-                            void M(object x)
-                            {
-                                if (x != null) { }
-                            }
+                    void M(object x)
+                    {
+                        if (x != null) { }
+                    }
         """;
 
         string expected = """
 
-                            void M(object x)
-                            {
-                                if (x is not null)
-                                {
-                                }
-                            }
+                    void M(object x)
+                    {
+                        if (x is not null)
+                        {
+                        }
+                    }
         """;
 
         FormatOptions options = new();
@@ -64,20 +64,20 @@ public class NullCheckPatternTests : FormatterTestBase
         // Yoda condition: null == x
         string input = """
 
-                            void M(object x)
-                            {
-                                if (null == x) { }
-                            }
+                    void M(object x)
+                    {
+                        if (null == x) { }
+                    }
         """;
 
         string expected = """
 
-                            void M(object x)
-                            {
-                                if (x is null)
-                                {
-                                }
-                            }
+                    void M(object x)
+                    {
+                        if (x is null)
+                        {
+                        }
+                    }
         """;
 
         FormatOptions options = new();
@@ -91,20 +91,20 @@ public class NullCheckPatternTests : FormatterTestBase
     {
         string input = """
 
-                            void M(string s)
-                            {
-                                if (s.Length.ToString() == null) { }
-                            }
+                    void M(string s)
+                    {
+                        if (s.Length.ToString() == null) { }
+                    }
         """;
 
         string expected = """
 
-                            void M(string s)
-                            {
-                                if (s.Length.ToString() is null)
-                                {
-                                }
-                            }
+                    void M(string s)
+                    {
+                        if (s.Length.ToString() is null)
+                        {
+                        }
+                    }
         """;
 
         FormatOptions options = new();
@@ -118,20 +118,20 @@ public class NullCheckPatternTests : FormatterTestBase
     {
         string input = """
 
-                            void M(object x)
-                            {
-                                if (x == null) { }
-                            }
+                    void M(object x)
+                    {
+                        if (x == null) { }
+                    }
         """;
 
         string expected = """
 
-                            void M(object x)
-                            {
-                                if (x == null)
-                                {
-                                }
-                            }
+                    void M(object x)
+                    {
+                        if (x == null)
+                        {
+                        }
+                    }
         """;
 
         FormatOptions options = new();

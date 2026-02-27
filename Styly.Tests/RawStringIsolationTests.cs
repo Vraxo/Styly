@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class RawStringIsolationTests : FormatterTestBase
 {
     [Fact]
-    public static void Isolation_MultiLineVerbatim_ConvertsAndIsolates()
+    public void Isolation_MultiLineVerbatim_ConvertsAndIsolates()
     {
         // Use 4 quotes for the outer delimiter because the content contains 3 quotes.
         string input = """
@@ -16,7 +16,7 @@ public class RawStringIsolationTests : FormatterTestBase
             line 2";
                 var b = 2;
             }
-        """;
+            """;
 
         string expected = """"
             void M()
@@ -30,7 +30,7 @@ public class RawStringIsolationTests : FormatterTestBase
 
                 var b = 2;
             }
-        """";
+            """";
 
         FormatOptions options = new();
         options.RawStrings.PreferRawForMultiline = true;
@@ -40,7 +40,7 @@ public class RawStringIsolationTests : FormatterTestBase
     }
 
     [Fact]
-    public static void Isolation_SingleLineStandard_DoesNotIsolate()
+    public void Isolation_SingleLineStandard_DoesNotIsolate()
     {
         string input = """
             void M()
@@ -49,7 +49,7 @@ public class RawStringIsolationTests : FormatterTestBase
                 var s = "just a single line";
                 var b = 2;
             }
-        """;
+            """;
 
         string expected = """
             void M()
@@ -58,7 +58,7 @@ public class RawStringIsolationTests : FormatterTestBase
                 var s = "just a single line";
                 var b = 2;
             }
-        """;
+            """;
 
         FormatOptions options = new();
         options.RawStrings.PreferRawForMultiline = true;
