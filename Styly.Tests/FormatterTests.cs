@@ -24,13 +24,15 @@ public abstract class FormatterTestBase
         }
 
         // Convert to common line ending
-        string normalized = text.Replace("""
+        string normalized = text
+            .Replace("""
 
 
         """, """
 
 
-        """).Trim();
+        """)
+            .Trim();
         // Split into lines
         string[] lines = normalized.Split('\n');
         // Find the minimum indentation across all non-empty lines
@@ -61,9 +63,11 @@ public abstract class FormatterTestBase
             ? line[minIndent..].TrimEnd()
             : line.TrimEnd());
 
-        return string.Join("""
+        return string
+            .Join("""
 
 
-        """, cleanedLines).Trim();
+        """, cleanedLines)
+            .Trim();
     }
 }

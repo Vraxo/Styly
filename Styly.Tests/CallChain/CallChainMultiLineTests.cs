@@ -1,4 +1,4 @@
-﻿using Styly.Configuration;
+using Styly.Configuration;
 
 namespace Styly.Tests.CallChain;
 
@@ -158,6 +158,7 @@ public class CallChainMultiLineTests : FormatterTestBase
     public static void CallChain_MultiLine_TwoPartChainIsExpanded()
     {
         string input = "var x = obj.Method();";
+
         string expected = """
             var x = obj
                 .Method();

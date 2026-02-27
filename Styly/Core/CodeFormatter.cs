@@ -37,8 +37,11 @@ public static class CodeFormatter
     {
         using AdhocWorkspace workspace = new();
 
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Where(path => !string.IsNullOrEmpty(path) 
-            && File.Exists(path)).Select(path => MetadataReference.CreateFromFile(path));
+        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+            .Split(Path.PathSeparator)
+            .Where(path => !string.IsNullOrEmpty(path) 
+            && File.Exists(path))
+            .Select(path => MetadataReference.CreateFromFile(path));
 
         Project project = workspace.AddProject("ScriptProject", LanguageNames.CSharp).WithMetadataReferences(references);
 

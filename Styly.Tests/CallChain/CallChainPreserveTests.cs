@@ -1,4 +1,4 @@
-﻿using Styly.Configuration;
+using Styly.Configuration;
 
 namespace Styly.Tests.CallChain;
 
@@ -16,7 +16,6 @@ public class CallChainPreserveTests : FormatterTestBase
                     .Method2();
             }
             """;
-
         // Note: var b correctly receives a blank line because it is identified
         // as a 'Heavy' (multi-line) expression by the VerticalRhythmRewriter.
         string expected = """

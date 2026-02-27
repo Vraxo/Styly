@@ -9,7 +9,6 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
     public const string SingleLineAnnotationKind = "Styly_SingleLine";
     public const string PreserveBlankLineAnnotationKind = "Styly_PreserveBlankLine";
     public const string MultiLineCallChainAnnotationKind = "Styly_MultiLineCallChain";
-
     private static bool IsSingleLine(SyntaxNode node)
     {
         FileLinePositionSpan lineSpan = node.GetLocation().GetLineSpan();
@@ -30,6 +29,7 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
         {
             T prev = items[i - 1];
             T curr = items[i];
+
             if (HasBlankLineBetween(prev, curr))
             {
                 curr = curr.WithAdditionalAnnotations(new SyntaxAnnotation(PreserveBlankLineAnnotationKind));
@@ -61,7 +61,8 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
     {
         // Annotate the root of a call chain if it is currently multi-line.
         // This allows 'Preserve' mode to restore the layout after NormalizeWhitespace flattens it.
-        return node.Parent is not MemberAccessExpressionSyntax && !IsSingleLine(node)
+        return node.Parent is not MemberAccessExpressionSyntax 
+            && !IsSingleLine(node)
             ? base.VisitMemberAccessExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(MultiLineCallChainAnnotationKind))
             : base.VisitMemberAccessExpression(node);
     }

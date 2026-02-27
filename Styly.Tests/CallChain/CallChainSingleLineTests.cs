@@ -1,4 +1,4 @@
-﻿using Styly.Configuration;
+using Styly.Configuration;
 
 namespace Styly.Tests.CallChain;
 
@@ -127,7 +127,11 @@ public class CallChainSingleLineTests : FormatterTestBase
     [Fact]
     public static void CallChain_SingleLine_TwoPartChainIsFlattened()
     {
-        string input = "var x = obj\n    .Method();";
+        string input = """
+            var x = obj
+                .Method();
+        """;
+
         string expected = "var x = obj.Method();";
 
         FormatOptions options = new()

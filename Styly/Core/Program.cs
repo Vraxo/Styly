@@ -103,8 +103,11 @@ public class Program
     {
         AdhocWorkspace workspace = new();
         // Feed the workspace the same DLLs this tool is running on (.NET 10 Core)
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Where(path => !string.IsNullOrEmpty(path) 
-            && File.Exists(path)).Select(path => MetadataReference.CreateFromFile(path));
+        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+            .Split(Path.PathSeparator)
+            .Where(path => !string.IsNullOrEmpty(path) 
+            && File.Exists(path))
+            .Select(path => MetadataReference.CreateFromFile(path));
 
         _ = workspace.AddProject("StylyContext", LanguageNames.CSharp).WithMetadataReferences(references);
 
