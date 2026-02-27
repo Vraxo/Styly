@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class VariablesTests : FormatterTestBase
 {
     [Fact]
-    public void Variables_VarToExplicit_BuiltInTypes()
+    public static void Variables_VarToExplicit_BuiltInTypes()
     {
         string input = """
             void M()
@@ -24,7 +24,10 @@ public class VariablesTests : FormatterTestBase
 
         FormatOptions options = new()
         {
-            Variables = new VariablesOptions { UseVar = UseVarOption.Never }
+            Variables = new VariablesOptions
+            {
+                UseVar = UseVarOption.Never
+            }
         };
 
         AssertFormatting(input, expected, options);

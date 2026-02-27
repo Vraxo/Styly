@@ -6,7 +6,7 @@ namespace Styly.Tests;
 public class NamespaceTests : FormatterTestBase
 {
     [Fact]
-    public void Namespace_BlockToFile_ConvertsAndRemovesIndentation()
+    public static void Namespace_BlockToFile_ConvertsAndRemovesIndentation()
     {
         string input = """
             namespace MySpace
@@ -28,7 +28,11 @@ public class NamespaceTests : FormatterTestBase
             }
             """;
 
-        FormatOptions options = new() { Namespace = NamespaceFormat.File };
+        FormatOptions options = new()
+        {
+            Namespace = NamespaceFormat.File
+        };
+
         AssertFormatting(input, expected, options);
     }
 }

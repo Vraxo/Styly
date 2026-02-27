@@ -9,11 +9,9 @@ public abstract class FormatterTestBase
     {
         // 1. Run the formatter
         string result = CodeFormatter.Reformat(input.Trim(), options);
-
         // 2. Normalize both strings for comparison
         string normalizedResult = CleanString(result);
         string normalizedExpected = CleanString(expected);
-
         // 3. Compare the "clean" versions
         Assert.Equal(normalizedExpected, normalizedResult);
     }
@@ -26,13 +24,18 @@ public abstract class FormatterTestBase
         }
 
         // Convert to common line ending
-        string normalized = text.Replace("\r\n", "\n").Trim();
+        string normalized = text.Replace("""
 
+
+        """, """
+
+
+        """).Trim();
         // Split into lines
         string[] lines = normalized.Split('\n');
-
         // Find the minimum indentation across all non-empty lines
         int minIndent = int.MaxValue;
+
         foreach (string line in lines)
         {
             if (string.IsNullOrWhiteSpace(line))
@@ -41,6 +44,7 @@ public abstract class FormatterTestBase
             }
 
             int indent = line.TakeWhile(char.IsWhiteSpace).Count();
+
             if (indent < minIndent)
             {
                 minIndent = indent;
@@ -53,9 +57,13 @@ public abstract class FormatterTestBase
         }
 
         // Strip that indentation from every line to ensure "flush-left" comparison
-        IEnumerable<string> cleanedLines = lines.Select(line =>
-            line.Length >= minIndent ? line[minIndent..].TrimEnd() : line.TrimEnd());
+        IEnumerable<string> cleanedLines = lines.Select(line => line.Length >= minIndent
+            ? line[minIndent..].TrimEnd()
+            : line.TrimEnd());
 
-        return string.Join("\n", cleanedLines).Trim();
+        return string.Join("""
+
+
+        """, cleanedLines).Trim();
     }
 }

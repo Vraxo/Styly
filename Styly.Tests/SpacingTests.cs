@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class SpacingTests : FormatterTestBase
 {
     [Fact]
-    public void Spacing_BeforeAndAfter_ControlFlow()
+    public static void Spacing_BeforeAndAfter_ControlFlow()
     {
         string input = """
             void M()

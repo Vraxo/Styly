@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class ExpressionIsolationTests : FormatterTestBase
 {
     [Fact]
-    public void Isolation_MultiLineTernary_AddsBlankLines()
+    public static void Isolation_MultiLineTernary_AddsBlankLines()
     {
         string input = """
             void M()

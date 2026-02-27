@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class EnumerableAnyTests : FormatterTestBase
 {
     [Fact]
-    public void Any_To_Count_List()
+    public static void Any_To_Count_List()
     {
         string input = """
             using System.Collections.Generic;
@@ -40,7 +40,7 @@ public class EnumerableAnyTests : FormatterTestBase
     }
 
     [Fact]
-    public void Any_To_Length_Array()
+    public static void Any_To_Length_Array()
     {
         string input = """
             using System.Linq;
@@ -72,7 +72,7 @@ public class EnumerableAnyTests : FormatterTestBase
     }
 
     [Fact]
-    public void Any_Is_Converted_And_UnusedUsing_Removed()
+    public static void Any_Is_Converted_And_UnusedUsing_Removed()
     {
         string input = """
             using System.Collections.Generic;

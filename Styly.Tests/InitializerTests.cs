@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class InitializerTests : FormatterTestBase
 {
     [Fact]
-    public void Initializers_Object_MultiLine()
+    public static void Initializers_Object_MultiLine()
     {
         string input = "var o = new Obj { A = 1, B = 2 };";
         string expected = """
@@ -23,7 +23,7 @@ public class InitializerTests : FormatterTestBase
     }
 
     [Fact]
-    public void Initializers_Collection_MultiLine()
+    public static void Initializers_Collection_MultiLine()
     {
         string input = "var l = new List<int> { 1, 2, 3 };";
         string expected = """

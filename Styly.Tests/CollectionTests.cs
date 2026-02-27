@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class CollectionTests : FormatterTestBase
 {
     [Fact]
-    public void Collections_PreferExpression_ListAndArray()
+    public static void Collections_PreferExpression_ListAndArray()
     {
         string input = """
             using System.Collections.Generic;

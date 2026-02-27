@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class UsingsTests : FormatterTestBase
 {
     [Fact]
-    public void Usings_SortAlphabetical_SystemFirst()
+    public static void Usings_SortAlphabetical_SystemFirst()
     {
         string input = """
             using Styly;
@@ -22,7 +22,10 @@ public class UsingsTests : FormatterTestBase
 
         FormatOptions options = new()
         {
-            Usings = new UsingsOptions { Sort = UsingSortOrder.Alphabetical }
+            Usings = new UsingsOptions
+            {
+                Sort = UsingSortOrder.Alphabetical
+            }
         };
 
         AssertFormatting(input, expected, options);
