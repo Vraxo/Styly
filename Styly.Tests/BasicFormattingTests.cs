@@ -12,12 +12,12 @@ public class BasicFormattingTests : FormatterTestBase
 
         string expected = """
 
-                            void M()
-                            {
-                                if (true)
-                                {
-                                }
-                            }
+                                    void M()
+                                    {
+                                        if (true)
+                                        {
+                                        }
+                                    }
         """;
 
         AssertFormatting(input, expected, new FormatOptions());
@@ -28,26 +28,26 @@ public class BasicFormattingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                            Console.WriteLine("test");
-                                  if (true)
-                                {
-                                    return;
-                                }
-                            }
+                                    void M()
+                                    {
+                                    Console.WriteLine("test");
+                                          if (true)
+                                        {
+                                            return;
+                                        }
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                Console.WriteLine("test");
-                                if (true)
-                                {
-                                    return;
-                                }
-                            }
+                                    void M()
+                                    {
+                                        Console.WriteLine("test");
+                                        if (true)
+                                        {
+                                            return;
+                                        }
+                                    }
         """;
 
         AssertFormatting(input, expected, new FormatOptions());
@@ -58,18 +58,18 @@ public class BasicFormattingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                int    x  =   1;
-                            }
+                                    void M()
+                                    {
+                                        int    x  =   1;
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                int x = 1;
-                            }
+                                    void M()
+                                    {
+                                        int x = 1;
+                                    }
         """;
 
         AssertFormatting(input, expected, new FormatOptions());

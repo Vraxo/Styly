@@ -10,23 +10,23 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                Console.WriteLine();
-                                if (true) { }
-                            }
+                                    void M()
+                                    {
+                                        Console.WriteLine();
+                                        if (true) { }
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                Console.WriteLine();
+                                    void M()
+                                    {
+                                        Console.WriteLine();
 
-                                if (true)
-                                {
-                                }
-                            }
+                                        if (true)
+                                        {
+                                        }
+                                    }
         """;
 
         FormatOptions options = new();
@@ -39,24 +39,24 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                Console.WriteLine();
+                                    void M()
+                                    {
+                                        Console.WriteLine();
 
-                                if (true) { }
-                            }
+                                        if (true) { }
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                Console.WriteLine();
+                                    void M()
+                                    {
+                                        Console.WriteLine();
 
-                                if (true)
-                                {
-                                }
-                            }
+                                        if (true)
+                                        {
+                                        }
+                                    }
         """;
 
         FormatOptions options = new();
@@ -69,37 +69,37 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                int x = 1;
-                                while (x < 10) x++;
-                                x++;
-                                for (int i = 0; i < 5; i++) { }
-                                x++;
-                                foreach (var y in new[] { 1 }) { }
-                            }
+                                    void M()
+                                    {
+                                        int x = 1;
+                                        while (x < 10) x++;
+                                        x++;
+                                        for (int i = 0; i < 5; i++) { }
+                                        x++;
+                                        foreach (var y in new[] { 1 }) { }
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                int x = 1;
+                                    void M()
+                                    {
+                                        int x = 1;
 
-                                while (x < 10)
-                                    x++;
-                                x++;
+                                        while (x < 10)
+                                            x++;
+                                        x++;
 
-                                for (int i = 0; i < 5; i++)
-                                {
-                                }
+                                        for (int i = 0; i < 5; i++)
+                                        {
+                                        }
 
-                                x++;
+                                        x++;
 
-                                foreach (var y in new[] { 1 })
-                                {
-                                }
-                            }
+                                        foreach (var y in new[] { 1 })
+                                        {
+                                        }
+                                    }
         """;
 
         FormatOptions options = new();
@@ -112,25 +112,25 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                DoSomething();
-                                // Check condition
-                                if (true) { }
-                            }
+                                    void M()
+                                    {
+                                        DoSomething();
+                                        // Check condition
+                                        if (true) { }
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                DoSomething();
+                                    void M()
+                                    {
+                                        DoSomething();
 
-                                // Check condition
-                                if (true)
-                                {
-                                }
-                            }
+                                        // Check condition
+                                        if (true)
+                                        {
+                                        }
+                                    }
         """;
 
         FormatOptions options = new();
@@ -143,32 +143,32 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                switch (x)
-                                {
-                                    case 1:
-                                        Do();
-                                        if (true) break;
-                                        break;
-                                }
-                            }
+                                    void M()
+                                    {
+                                        switch (x)
+                                        {
+                                            case 1:
+                                                Do();
+                                                if (true) break;
+                                                break;
+                                        }
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                switch (x)
-                                {
-                                    case 1:
-                                        Do();
+                                    void M()
+                                    {
+                                        switch (x)
+                                        {
+                                            case 1:
+                                                Do();
 
-                                        if (true)
-                                            break;
-                                        break;
-                                }
-                            }
+                                                if (true)
+                                                    break;
+                                                break;
+                                        }
+                                    }
         """;
 
         FormatOptions options = new();
@@ -181,23 +181,23 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                if (true) { }
-                                Console.WriteLine();
-                            }
+                                    void M()
+                                    {
+                                        if (true) { }
+                                        Console.WriteLine();
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                if (true)
-                                {
-                                }
+                                    void M()
+                                    {
+                                        if (true)
+                                        {
+                                        }
 
-                                Console.WriteLine();
-                            }
+                                        Console.WriteLine();
+                                    }
         """;
 
         FormatOptions options = new();
@@ -210,26 +210,26 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                Start();
-                                if (true) { }
-                                End();
-                            }
+                                    void M()
+                                    {
+                                        Start();
+                                        if (true) { }
+                                        End();
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                Start();
+                                    void M()
+                                    {
+                                        Start();
 
-                                if (true)
-                                {
-                                }
+                                        if (true)
+                                        {
+                                        }
 
-                                End();
-                            }
+                                        End();
+                                    }
         """;
 
         FormatOptions options = new();
@@ -243,21 +243,21 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            Console.WriteLine("Start");
-                            if (args.Length > 0)
-                            {
-                                Console.WriteLine("Args");
-                            }
+                                    Console.WriteLine("Start");
+                                    if (args.Length > 0)
+                                    {
+                                        Console.WriteLine("Args");
+                                    }
         """;
 
         string expected = """
 
-                            Console.WriteLine("Start");
+                                    Console.WriteLine("Start");
 
-                            if (args.Length > 0)
-                            {
-                                Console.WriteLine("Args");
-                            }
+                                    if (args.Length > 0)
+                                    {
+                                        Console.WriteLine("Args");
+                                    }
         """;
 
         FormatOptions options = new();
@@ -270,22 +270,22 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                Do();
-                                if (true) { }
-                            }
+                                    void M()
+                                    {
+                                        Do();
+                                        if (true) { }
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                Do();
-                                if (true)
-                                {
-                                }
-                            }
+                                    void M()
+                                    {
+                                        Do();
+                                        if (true)
+                                        {
+                                        }
+                                    }
         """;
 
         FormatOptions options = new(); // Default is false
@@ -297,29 +297,29 @@ public class SpacingTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                SomeClass modes = new() { A = 1, B = 2 };
-                                int integer = 10;
-                                var x = new { X = 1 };
-                                return;
-                            }
+                                    void M()
+                                    {
+                                        SomeClass modes = new() { A = 1, B = 2 };
+                                        int integer = 10;
+                                        var x = new { X = 1 };
+                                        return;
+                                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                SomeClass modes = new()
-                                {
-                                    A = 1,
-                                    B = 2
-                                };
+                                    void M()
+                                    {
+                                        SomeClass modes = new()
+                                        {
+                                            A = 1,
+                                            B = 2
+                                        };
 
-                                int integer = 10;
-                                var x = new { X = 1 };
-                                return;
-                            }
+                                        int integer = 10;
+                                        var x = new { X = 1 };
+                                        return;
+                                    }
         """;
 
         FormatOptions options = new();
