@@ -8,6 +8,7 @@ namespace Styly.Rewriters.Initializer;
 internal class InitializerRewriter : CSharpSyntaxRewriter
 {
     private readonly InitializerOptions _options;
+
     private enum FormattingAction
     {
         None,
@@ -20,9 +21,6 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
         _options = options;
     }
 
-    /// <summary>
-    /// Centralizes the logic for deciding whether to format as SingleLine, MultiLine, or Preserve (None).
-    /// </summary>
     private static FormattingAction DetermineAction(InitializerStyle style, bool hasComments, bool wasSingleLine, bool hasItems)
     {
         if (!hasItems)
@@ -30,26 +28,20 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
             return FormattingAction.None;
         }
 
-        // If comments exist, we generally preserve the layout to avoid breaking comment placement.
+        // If comments exist, we preserve layout to avoid breaking comment placement.
         if (hasComments)
         {
-            // However, if it was originally single-line, NormalizeWhitespace likely expanded it awkwardly.
-            // We force it back to SingleLine to recover the original intent while keeping comments inline.
-            return wasSingleLine
-                ? FormattingAction.SingleLine
-                : FormattingAction.None;
+            // If it was originally single-line, we recover it from NormalizeWhitespace.
+            return wasSingleLine ? FormattingAction.SingleLine : FormattingAction.None;
         }
 
-        // If no comments exist, we follow the configuration strictness.
         return style switch
         {
             InitializerStyle.SingleLine => FormattingAction.SingleLine,
             InitializerStyle.MultiLine => FormattingAction.MultiLine,
-            InitializerStyle.Preserve => throw new NotImplementedException(),
-            _ => wasSingleLine
-            ? FormattingAction.SingleLine
-            : FormattingAction.None, // In Preserve mode, we only enforce SingleLine if it was already single-line
-        // (recovering from NormalizeWhitespace). Otherwise, we leave it alone.
+            // Preserve mode: only force SingleLine if it was already single-line (recovery)
+            InitializerStyle.Preserve => wasSingleLine ? FormattingAction.SingleLine : FormattingAction.None,
+            _ => wasSingleLine ? FormattingAction.SingleLine : FormattingAction.None,
         };
     }
 
@@ -64,20 +56,24 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
         if (action == FormattingAction.SingleLine)
         {
             SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListSingleLine(node.Initializers);
-
             AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
 
-            return cleanNode.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(cleanNode.OpenBraceToken)).WithInitializers(newMembers).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(cleanNode.CloseBraceToken));
+            return cleanNode
+                .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(cleanNode.OpenBraceToken))
+                .WithInitializers(newMembers)
+                .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(cleanNode.CloseBraceToken));
         }
 
         if (action == FormattingAction.MultiLine)
         {
             SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
             SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListMultiLine(node.Initializers, parentIndent);
-
             AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
 
-            return cleanNode.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(cleanNode.OpenBraceToken, parentIndent)).WithInitializers(newMembers).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(cleanNode.CloseBraceToken, parentIndent));
+            return cleanNode
+                .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(cleanNode.OpenBraceToken, parentIndent))
+                .WithInitializers(newMembers)
+                .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(cleanNode.CloseBraceToken, parentIndent));
         }
 
         return base.VisitAnonymousObjectCreationExpression(node);
@@ -95,7 +91,10 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
         {
             SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListSingleLine(node.Elements);
 
-            return node.WithOpenBracketToken(node.OpenBracketToken.WithLeadingTrivia(SyntaxFactory.TriviaList()).WithTrailingTrivia(SyntaxFactory.Space)).WithElements(newElements).WithCloseBracketToken(node.CloseBracketToken.WithLeadingTrivia(SyntaxFactory.Space));
+            return node
+                .WithOpenBracketToken(node.OpenBracketToken.WithLeadingTrivia(SyntaxFactory.TriviaList()).WithTrailingTrivia(SyntaxFactory.Space))
+                .WithElements(newElements)
+                .WithCloseBracketToken(node.CloseBracketToken.WithLeadingTrivia(SyntaxFactory.Space));
         }
 
         if (action == FormattingAction.MultiLine)
@@ -103,7 +102,10 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
             SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
             SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListMultiLine(node.Elements, parentIndent);
 
-            return node.WithOpenBracketToken(InitializerFormatter.FormatOpenBraceMultiLine(node.OpenBracketToken, parentIndent)).WithElements(newElements).WithCloseBracketToken(InitializerFormatter.FormatCloseBraceMultiLine(node.CloseBracketToken, parentIndent));
+            return node
+                .WithOpenBracketToken(InitializerFormatter.FormatOpenBraceMultiLine(node.OpenBracketToken, parentIndent))
+                .WithElements(newElements)
+                .WithCloseBracketToken(InitializerFormatter.FormatCloseBraceMultiLine(node.CloseBracketToken, parentIndent));
         }
 
         return base.VisitCollectionExpression(node);
@@ -112,9 +114,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitEqualsValueClause(EqualsValueClauseSyntax node)
     {
         EqualsValueClauseSyntax visited = (EqualsValueClauseSyntax)base.VisitEqualsValueClause(node)!;
-
-        return _options.Collection == InitializerStyle.MultiLine 
-            && visited.Value is CollectionExpressionSyntax
+        return _options.Collection == InitializerStyle.MultiLine && visited.Value is CollectionExpressionSyntax
             ? visited.WithEqualsToken(visited.EqualsToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
             : visited;
     }
@@ -122,9 +122,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitAssignmentExpression(AssignmentExpressionSyntax node)
     {
         AssignmentExpressionSyntax visited = (AssignmentExpressionSyntax)base.VisitAssignmentExpression(node)!;
-
-        return _options.Collection == InitializerStyle.MultiLine 
-            && visited.Right is CollectionExpressionSyntax
+        return _options.Collection == InitializerStyle.MultiLine && visited.Right is CollectionExpressionSyntax
             ? visited.WithOperatorToken(visited.OperatorToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
             : visited;
     }
@@ -152,7 +150,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     private SyntaxNode ProcessObjectCreation<TNode>(TNode node, InitializerExpressionSyntax? initializer, Func<TNode, InitializerExpressionSyntax, TNode> withInitializer)
         where TNode : ExpressionSyntax
     {
-        if (initializer is null)
+        if (initializer == null)
         {
             return VisitBaseExpression(node);
         }
@@ -161,34 +159,35 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
         bool wasSingleLine = initializer.HasAnnotations(LayoutAnnotator.SingleLineAnnotationKind);
         bool hasItems = initializer.Expressions.Any();
 
-        bool isCollection = initializer.IsKind(SyntaxKind.CollectionInitializerExpression) 
-            || initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
+        bool isColl = initializer.IsKind(SyntaxKind.CollectionInitializerExpression) ||
+                      initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
 
-        InitializerStyle style = isCollection
-            ? _options.Collection
-            : _options.Object;
-
+        InitializerStyle style = isColl ? _options.Collection : _options.Object;
         FormattingAction action = DetermineAction(style, hasComments, wasSingleLine, hasItems);
 
         if (action == FormattingAction.SingleLine)
         {
-            SeparatedSyntaxList<ExpressionSyntax> newExpressions = InitializerFormatter.FormatListSingleLine(initializer.Expressions);
+            SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListSingleLine(initializer.Expressions);
             TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
+            InitializerExpressionSyntax newInit = initializer
+                .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(initializer.OpenBraceToken))
+                .WithExpressions(newExps)
+                .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(initializer.CloseBraceToken));
 
-            InitializerExpressionSyntax newInitializer = initializer.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(initializer.OpenBraceToken)).WithExpressions(newExpressions).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(initializer.CloseBraceToken));
-
-            return withInitializer(cleanNode, newInitializer);
+            return withInitializer(cleanNode, newInit);
         }
 
         if (action == FormattingAction.MultiLine)
         {
             SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
-            SeparatedSyntaxList<ExpressionSyntax> newExpressions = InitializerFormatter.FormatListMultiLine(initializer.Expressions, parentIndent);
+            SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListMultiLine(initializer.Expressions, parentIndent);
             TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
+            InitializerExpressionSyntax newInit = initializer
+                .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(initializer.OpenBraceToken, parentIndent))
+                .WithExpressions(newExps)
+                .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(initializer.CloseBraceToken, parentIndent));
 
-            InitializerExpressionSyntax newInitializer = initializer.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(initializer.OpenBraceToken, parentIndent)).WithExpressions(newExpressions).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(initializer.CloseBraceToken, parentIndent));
-
-            return withInitializer(cleanNode, newInitializer);
+            return withInitializer(cleanNode, newInit);
         }
 
         return VisitBaseExpression(node);

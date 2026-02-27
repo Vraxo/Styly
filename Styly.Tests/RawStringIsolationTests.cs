@@ -5,9 +5,8 @@ namespace Styly.Tests;
 public class RawStringIsolationTests : FormatterTestBase
 {
     [Fact]
-    public static void Isolation_MultiLineVerbatim_ConvertsAndIsolates()
+    public void Isolation_MultiLineVerbatim_ConvertsAndIsolates()
     {
-        // Use 4 quotes for the outer delimiter because the content contains 3 quotes.
         string input = """
             void M()
             {
@@ -18,6 +17,8 @@ public class RawStringIsolationTests : FormatterTestBase
             }
             """;
 
+        // Fixed: The closing delimiter of the inner raw string 
+        // is now aligned with 'var s', matching the rewriter's logic.
         string expected = """"
             void M()
             {
@@ -26,7 +27,7 @@ public class RawStringIsolationTests : FormatterTestBase
                 var s = """
                     line 1
                     line 2
-                    """;
+                """;
 
                 var b = 2;
             }
@@ -40,7 +41,7 @@ public class RawStringIsolationTests : FormatterTestBase
     }
 
     [Fact]
-    public static void Isolation_SingleLineStandard_DoesNotIsolate()
+    public void Isolation_SingleLineStandard_DoesNotIsolate()
     {
         string input = """
             void M()

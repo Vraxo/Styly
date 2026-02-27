@@ -13,6 +13,7 @@ public class NullCheckPatternTests : FormatterTestBase
                 if (x == null) { }
             }
             """;
+
         string expected = """
             void M(object x)
             {
@@ -21,7 +22,10 @@ public class NullCheckPatternTests : FormatterTestBase
                 }
             }
             """;
-        FormatOptions options = new() { Optimization.PreferNullPatterns = true };
+
+        FormatOptions options = new();
+        options.Optimization.PreferNullPatterns = true;
+
         AssertFormatting(input, expected, options);
     }
 
@@ -34,6 +38,7 @@ public class NullCheckPatternTests : FormatterTestBase
                 if (x != null) { }
             }
             """;
+
         string expected = """
             void M(object x)
             {
@@ -42,7 +47,10 @@ public class NullCheckPatternTests : FormatterTestBase
                 }
             }
             """;
-        FormatOptions options = new() { Optimization.PreferNullPatterns = true };
+
+        FormatOptions options = new();
+        options.Optimization.PreferNullPatterns = true;
+
         AssertFormatting(input, expected, options);
     }
 
@@ -55,6 +63,7 @@ public class NullCheckPatternTests : FormatterTestBase
                 if (null == x) { }
             }
             """;
+
         string expected = """
             void M(object x)
             {
@@ -63,7 +72,10 @@ public class NullCheckPatternTests : FormatterTestBase
                 }
             }
             """;
-        FormatOptions options = new() { Optimization.PreferNullPatterns = true };
+
+        FormatOptions options = new();
+        options.Optimization.PreferNullPatterns = true;
+
         AssertFormatting(input, expected, options);
     }
 
@@ -76,6 +88,7 @@ public class NullCheckPatternTests : FormatterTestBase
                 if (s.Length.ToString() == null) { }
             }
             """;
+
         string expected = """
             void M(string s)
             {
@@ -84,7 +97,10 @@ public class NullCheckPatternTests : FormatterTestBase
                 }
             }
             """;
-        FormatOptions options = new() { Optimization.PreferNullPatterns = true };
+
+        FormatOptions options = new();
+        options.Optimization.PreferNullPatterns = true;
+
         AssertFormatting(input, expected, options);
     }
 }

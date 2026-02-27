@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class InitializerTests : FormatterTestBase
 {
     [Fact]
-    public void Initializers_Object_MultiLine()
+    public static void Initializers_Object_MultiLine()
     {
         string input = "var o = new Obj { A = 1, B = 2 };";
         string expected = """
@@ -23,7 +23,7 @@ public class InitializerTests : FormatterTestBase
     }
 
     [Fact]
-    public void Initializers_Object_SingleLine()
+    public static void Initializers_Object_SingleLine()
     {
         string input = """
             var o = new Obj
@@ -42,7 +42,7 @@ public class InitializerTests : FormatterTestBase
     }
 
     [Fact]
-    public void Initializers_Anonymous_MultiLine()
+    public static void Initializers_Anonymous_MultiLine()
     {
         string input = "var a = new { X = 1, Y = 2 };";
         string expected = """
@@ -58,7 +58,7 @@ public class InitializerTests : FormatterTestBase
     }
 
     [Fact]
-    public void Initializers_Collection_MultiLine()
+    public static void Initializers_Collection_MultiLine()
     {
         string input = "var l = new List<int> { 1, 2, 3 };";
         string expected = """
@@ -75,7 +75,7 @@ public class InitializerTests : FormatterTestBase
     }
 
     [Fact]
-    public void Initializers_CollectionExpression_MultiLine()
+    public static void Initializers_CollectionExpression_MultiLine()
     {
         string input = "var x = [1, 2];";
         string expected = """
@@ -91,7 +91,7 @@ public class InitializerTests : FormatterTestBase
     }
 
     [Fact]
-    public void Initializers_Preserve_Comments()
+    public static void Initializers_Preserve_Comments()
     {
         string input = "var o = new Obj { /* comment */ A = 1 };";
         string expected = "var o = new Obj { /* comment */ A = 1 };";

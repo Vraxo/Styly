@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class SpacingTests : FormatterTestBase
 {
     [Fact]
-    public void Spacing_EmptyLineBeforeControlFlow_If()
+    public static void Spacing_EmptyLineBeforeControlFlow_If()
     {
         string input = """
             void M()
@@ -30,7 +30,7 @@ public class SpacingTests : FormatterTestBase
     }
 
     [Fact]
-    public void Spacing_EmptyLineBeforeControlFlow_MultipleTypes()
+    public static void Spacing_EmptyLineBeforeControlFlow_MultipleTypes()
     {
         string input = """
             void M()
@@ -61,7 +61,7 @@ public class SpacingTests : FormatterTestBase
     }
 
     [Fact]
-    public void Spacing_EmptyLineAfterControlFlow_If()
+    public static void Spacing_EmptyLineAfterControlFlow_If()
     {
         string input = """
             void M()
@@ -86,7 +86,7 @@ public class SpacingTests : FormatterTestBase
     }
 
     [Fact]
-    public void Spacing_BeforeAndAfter_ControlFlow()
+    public static void Spacing_BeforeAndAfter_ControlFlow()
     {
         string input = """
             void M()
@@ -115,7 +115,7 @@ public class SpacingTests : FormatterTestBase
     }
 
     [Fact]
-    public void Spacing_TopLevelStatements()
+    public static void Spacing_TopLevelStatements()
     {
         string input = """
             Console.WriteLine("Start");
@@ -138,7 +138,7 @@ public class SpacingTests : FormatterTestBase
     }
 
     [Fact]
-    public void Spacing_MultiLineInitializer_AddsBlankLine()
+    public static void Spacing_MultiLineInitializer_AddsBlankLine()
     {
         string input = """
             void M()

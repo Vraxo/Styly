@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class EnumerableAnyTests : FormatterTestBase
 {
     [Fact]
-    public void Any_To_Count_List()
+    public static void Any_To_Count_List()
     {
         string input = """
             using System.Collections.Generic;
@@ -40,7 +40,7 @@ public class EnumerableAnyTests : FormatterTestBase
     }
 
     [Fact]
-    public void Any_To_Length_Array()
+    public static void Any_To_Length_Array()
     {
         string input = """
             using System.Linq;
@@ -72,7 +72,7 @@ public class EnumerableAnyTests : FormatterTestBase
     }
 
     [Fact]
-    public void Any_Ignored_When_No_Count_Or_Length()
+    public static void Any_Ignored_When_No_Count_Or_Length()
     {
         string input = """
             using System.Collections.Generic;
@@ -104,7 +104,7 @@ public class EnumerableAnyTests : FormatterTestBase
     }
 
     [Fact]
-    public void Any_Ignored_With_Predicate()
+    public static void Any_Ignored_With_Predicate()
     {
         string input = """
             using System.Collections.Generic;
@@ -138,7 +138,7 @@ public class EnumerableAnyTests : FormatterTestBase
     }
 
     [Fact]
-    public void Any_Is_Converted_And_UnusedUsing_Removed()
+    public static void Any_Is_Converted_And_UnusedUsing_Removed()
     {
         string input = """
             using System.Collections.Generic;
@@ -170,14 +170,17 @@ public class EnumerableAnyTests : FormatterTestBase
 
         FormatOptions options = new()
         {
-            Usings = new UsingsOptions { RemoveUnused = true }
+            Usings = new UsingsOptions
+            {
+                RemoveUnused = true
+            }
         };
 
         AssertFormatting(input, expected, options);
     }
 
     [Fact]
-    public void Any_To_Count_Operator_Spacing()
+    public static void Any_To_Count_Operator_Spacing()
     {
         string input = """
             using System.Collections.Generic;
@@ -207,7 +210,14 @@ public class EnumerableAnyTests : FormatterTestBase
             }
             """;
 
-        FormatOptions options = new() { Usings = new UsingsOptions { RemoveUnused = true } };
+        FormatOptions options = new()
+        {
+            Usings = new UsingsOptions
+            {
+                RemoveUnused = true
+            }
+        };
+
         AssertFormatting(input, expected, options);
     }
 }

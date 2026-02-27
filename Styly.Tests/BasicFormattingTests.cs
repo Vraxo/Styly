@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class BasicFormattingTests : FormatterTestBase
 {
     [Fact]
-    public void Cleanup_FixesSpacing_ControlFlow()
+    public static void Cleanup_FixesSpacing_ControlFlow()
     {
         string input = "void M(){if(true){}}";
         string expected = """
@@ -20,7 +20,7 @@ public class BasicFormattingTests : FormatterTestBase
     }
 
     [Fact]
-    public void Cleanup_FixesIndentation()
+    public static void Cleanup_FixesIndentation()
     {
         string input = """
             void M()
@@ -46,7 +46,7 @@ public class BasicFormattingTests : FormatterTestBase
     }
 
     [Fact]
-    public void Cleanup_RemovesExcessSpaces()
+    public static void Cleanup_RemovesExcessSpaces()
     {
         string input = """
             void M()

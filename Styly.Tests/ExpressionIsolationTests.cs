@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class ExpressionIsolationTests : FormatterTestBase
 {
     [Fact]
-    public void Isolation_MultiLineTernary_AddsBlankLines()
+    public static void Isolation_MultiLineTernary_AddsBlankLines()
     {
         string input = """
             void M()
@@ -37,7 +37,7 @@ public class ExpressionIsolationTests : FormatterTestBase
     }
 
     [Fact]
-    public void Isolation_MultiLineObjectInitializer_AddsBlankLines()
+    public static void Isolation_MultiLineObjectInitializer_AddsBlankLines()
     {
         string input = """
             void M()
@@ -71,7 +71,7 @@ public class ExpressionIsolationTests : FormatterTestBase
     }
 
     [Fact]
-    public void Isolation_MultipleMixed_HandlesFlow()
+    public static void Isolation_MultipleMixed_HandlesFlow()
     {
         string input = """
             void M()

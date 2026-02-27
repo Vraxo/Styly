@@ -6,9 +6,11 @@ public class ModifiersTests : FormatterTestBase
 {
     private readonly FormatOptions _options = new()
     {
-        Modifiers = new ModifiersOptions { MakeStaticWhenPossible = true }
+        Modifiers = new ModifiersOptions
+        {
+            MakeStaticWhenPossible = true
+        }
     };
-
     [Fact]
     public void Modifiers_MakeStatic_SimpleMethod()
     {

@@ -8,6 +8,7 @@ namespace Styly.Rewriters;
 internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 {
     private readonly SpacingOptions _options;
+
     public VerticalRhythmRewriter(SpacingOptions options)
     {
         _options = options;
@@ -15,10 +16,7 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)
     {
-        SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(node.Members, m => m is GlobalStatementSyntax g
-            ? g.Statement
-            : null);
-
+        SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(node.Members, m => m is GlobalStatementSyntax g ? g.Statement : null);
         return base.VisitCompilationUnit(node.WithMembers(newMembers));
     }
 
@@ -64,14 +62,11 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
             StatementSyntax? prevStmt = getStatement(prev);
             StatementSyntax? currStmt = getStatement(curr);
 
-            bool shouldGap = (_options.EmptyLineBeforeControlFlow 
-                && IsControlFlow(currStmt)) 
-                || (_options.EmptyLineAfterControlFlow 
-                && IsControlFlow(prevStmt)) 
-                || (_options.EmptyLineAroundMultiLineExpression 
-                && (IsMultiLine(prevStmt) 
-                || IsMultiLine(currStmt))) 
-                || curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
+            bool shouldGap =
+                (_options.EmptyLineBeforeControlFlow && IsControlFlow(currStmt)) ||
+                (_options.EmptyLineAfterControlFlow && IsControlFlow(prevStmt)) ||
+                (_options.EmptyLineAroundMultiLineExpression && (IsHeavyExpression(prevStmt) || IsHeavyExpression(currStmt))) ||
+                curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
 
             if (shouldGap)
             {
@@ -86,23 +81,25 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 
     private static bool IsControlFlow(StatementSyntax? s)
     {
-        return s is IfStatementSyntax 
-            or SwitchStatementSyntax 
-            or WhileStatementSyntax 
-            or DoStatementSyntax 
-            or ForStatementSyntax 
-            or ForEachStatementSyntax 
-            or TryStatementSyntax 
-            or LocalFunctionStatementSyntax;
+        return s is
+        IfStatementSyntax or SwitchStatementSyntax or WhileStatementSyntax or
+        DoStatementSyntax or ForStatementSyntax or ForEachStatementSyntax or
+        TryStatementSyntax or LocalFunctionStatementSyntax;
     }
 
-    private static bool IsMultiLine(StatementSyntax? s)
+    private static bool IsHeavyExpression(StatementSyntax? s)
     {
-        return s is not null 
-            && s.DescendantNodes().Any(n => (n is InitializerExpressionSyntax 
-            or CollectionExpressionSyntax 
-            or AnonymousObjectCreationExpressionSyntax 
-            or ConditionalExpressionSyntax) 
-            && n.DescendantTrivia().Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)));
+        if (s == null)
+        {
+            return false;
+        }
+
+        // A statement contains a "heavy" expression if any internal expression 
+        // (like a ternary or raw string) factually spans multiple lines.
+        return s.DescendantNodes().OfType<ExpressionSyntax>().Any(e =>
+        {
+            FileLinePositionSpan lineSpan = e.GetLocation().GetLineSpan();
+            return lineSpan.EndLinePosition.Line > lineSpan.StartLinePosition.Line;
+        });
     }
 }
