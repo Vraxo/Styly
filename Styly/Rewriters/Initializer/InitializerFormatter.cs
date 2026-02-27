@@ -37,12 +37,10 @@ internal static class InitializerFormatter
     {
         // Remove leading whitespace, keep comments
         SyntaxTriviaList leading = node.GetLeadingTrivia();
-
         IEnumerable<SyntaxTrivia> newLeading = leading.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
             && !t.IsKind(SyntaxKind.EndOfLineTrivia));
         // Remove trailing whitespace, keep comments
         SyntaxTriviaList trailing = node.GetTrailingTrivia();
-
         IEnumerable<SyntaxTrivia> newTrailing = trailing.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
             && !t.IsKind(SyntaxKind.EndOfLineTrivia));
 
@@ -85,7 +83,6 @@ internal static class InitializerFormatter
         // Flatten leading/trailing to remove newlines, but keep non-whitespace.
         IEnumerable<SyntaxTrivia> leading = openBrace.LeadingTrivia.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
             && !t.IsKind(SyntaxKind.EndOfLineTrivia));
-
         IEnumerable<SyntaxTrivia> trailing = openBrace.TrailingTrivia.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
             && !t.IsKind(SyntaxKind.EndOfLineTrivia));
         // Start with a space, then comments
@@ -117,7 +114,6 @@ internal static class InitializerFormatter
         // Clean trailing trivia too (remove whitespace/newlines) to ensure compact formatting
         IEnumerable<SyntaxTrivia> trailing = closeBrace.TrailingTrivia.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
             && !t.IsKind(SyntaxKind.EndOfLineTrivia));
-
         SyntaxTriviaList newTrailing = SyntaxFactory.TriviaList(trailing);
 
         return closeBrace.WithLeadingTrivia(newLeading).WithTrailingTrivia(newTrailing);

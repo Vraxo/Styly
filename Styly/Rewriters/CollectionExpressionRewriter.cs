@@ -61,7 +61,6 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
             // Explicitly create a SeparatedSyntaxList of the base type `CollectionElementSyntax`.
             // This works because IEnumerable<T> is covariant, allowing our IEnumerable<ExpressionElementSyntax> to be used.
             SeparatedSyntaxList<CollectionElementSyntax> separatedList = SyntaxFactory.SeparatedList<CollectionElementSyntax>(cleanElements, separators);
-
             newExpression = SyntaxFactory.CollectionExpression(separatedList);
         }
 

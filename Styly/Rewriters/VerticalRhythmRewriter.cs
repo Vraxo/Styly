@@ -98,14 +98,11 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 
     private static bool IsMultiLine(StatementSyntax? s)
     {
-        if (s is null)
-        {
-            return false;
-        }
-
-        // A statement is considered "heavy" (multi-line) if any expression inside it 
-        // contains internal newlines, either in its tokens (literals) or its trivia (formatted layout).
-        return s.DescendantNodes().OfType<ExpressionSyntax>().Any(e => e.DescendantTrivia().Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)) 
-            || e.DescendantTokens().Any(tk => tk.Text.Contains('\n')));
+        return s is not null 
+            && s.DescendantNodes().Any(n => (n is InitializerExpressionSyntax 
+            or CollectionExpressionSyntax 
+            or AnonymousObjectCreationExpressionSyntax 
+            or ConditionalExpressionSyntax) 
+            && n.DescendantTrivia().Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)));
     }
 }

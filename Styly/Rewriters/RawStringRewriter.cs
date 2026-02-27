@@ -36,17 +36,14 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
     {
         // 1. Determine how many quotes we need (minimum 3)
         int maxSequentialQuotes = GetMaxSequentialQuotes(value);
-
         int quotesNeeded = Math.Max(3, maxSequentialQuotes + 1);
         string delimiter = new('"', quotesNeeded);
         // 2. Get indentation
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
-
         string indentStr = parentIndent.ToString();
         string contentIndent = indentStr + new string (' ', IndentSize);
         // 3. Format lines
         string[] lines = MyRegex().Split(value);
-
         StringBuilder sb = new();
         _ = sb.AppendLine(delimiter);
 

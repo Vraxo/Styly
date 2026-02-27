@@ -9,26 +9,26 @@ public class ExpressionIsolationTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                var a = 1;
-                                var b = true ? "long_branch_1" : "long_branch_2";
-                                var c = 2;
-                            }
+                    void M()
+                    {
+                        var a = 1;
+                        var b = true ? "long_branch_1" : "long_branch_2";
+                        var c = 2;
+                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                var a = 1;
+                    void M()
+                    {
+                        var a = 1;
 
-                                var b = true
-                                    ? "long_branch_1"
-                                    : "long_branch_2";
+                        var b = true
+                            ? "long_branch_1"
+                            : "long_branch_2";
 
-                                var c = 2;
-                            }
+                        var c = 2;
+                    }
         """;
 
         FormatOptions options = new();
@@ -43,28 +43,28 @@ public class ExpressionIsolationTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                var x = 10;
-                                var o = new Obj { A = 1, B = 2 };
-                                var y = 20;
-                            }
+                    void M()
+                    {
+                        var x = 10;
+                        var o = new Obj { A = 1, B = 2 };
+                        var y = 20;
+                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                var x = 10;
+                    void M()
+                    {
+                        var x = 10;
 
-                                var o = new Obj
-                                {
-                                    A = 1,
-                                    B = 2
-                                };
+                        var o = new Obj
+                        {
+                            A = 1,
+                            B = 2
+                        };
 
-                                var y = 20;
-                            }
+                        var y = 20;
+                    }
         """;
 
         FormatOptions options = new();
@@ -79,24 +79,24 @@ public class ExpressionIsolationTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                var a = 1;
-                                var b = true ? "1" : "2";
-                                var c = 2;
-                            }
+                    void M()
+                    {
+                        var a = 1;
+                        var b = true ? "1" : "2";
+                        var c = 2;
+                    }
         """;
         // Even with MultiLine ternary, no blank lines are added if isolation is false.
         string expected = """
 
-                            void M()
-                            {
-                                var a = 1;
-                                var b = true
-                                    ? "1"
-                                    : "2";
-                                var c = 2;
-                            }
+                    void M()
+                    {
+                        var a = 1;
+                        var b = true
+                            ? "1"
+                            : "2";
+                        var c = 2;
+                    }
         """;
 
         FormatOptions options = new();
@@ -111,33 +111,33 @@ public class ExpressionIsolationTests : FormatterTestBase
     {
         string input = """
 
-                            void M()
-                            {
-                                var a = 1;
-                                var b = true ? "1" : "2";
-                                var c = new { X = 1, Y = 2 };
-                                var d = 4;
-                            }
+                    void M()
+                    {
+                        var a = 1;
+                        var b = true ? "1" : "2";
+                        var c = new { X = 1, Y = 2 };
+                        var d = 4;
+                    }
         """;
 
         string expected = """
 
-                            void M()
-                            {
-                                var a = 1;
+                    void M()
+                    {
+                        var a = 1;
 
-                                var b = true
-                                    ? "1"
-                                    : "2";
+                        var b = true
+                            ? "1"
+                            : "2";
 
-                                var c = new
-                                {
-                                    X = 1,
-                                    Y = 2
-                                };
+                        var c = new
+                        {
+                            X = 1,
+                            Y = 2
+                        };
 
-                                var d = 4;
-                            }
+                        var d = 4;
+                    }
         """;
 
         FormatOptions options = new();
