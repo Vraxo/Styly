@@ -89,6 +89,13 @@ public static class CodeFormatter
             document = document.WithSyntaxRoot(new EnumerableAnyRewriter(model).Visit(root));
         }
 
+        // Optimization: == null -> is null / != null -> is not null
+        if (options.Optimization.PreferNullPatterns)
+        {
+            (SemanticModel _, SyntaxNode? root) = await GetCtx();
+            document = document.WithSyntaxRoot(new NullCheckPatternRewriter().Visit(root));
+        }
+
         if (options.Usings.RemoveUnused)
         {
             (SemanticModel? model, SyntaxNode? root) = await GetCtx();

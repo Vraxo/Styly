@@ -22,7 +22,7 @@ internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
             return base.VisitBinaryExpression(node);
         }
 
-        // Only process from the root of a logical chain
+        // Only process from the root of a logical chain to avoid redundant work
         return IsLogical(node.Parent?.Kind() ?? SyntaxKind.None) ? base.VisitBinaryExpression(node) : FormatChain(node);
     }
 
@@ -41,38 +41,8 @@ internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
     {
         SyntaxTriviaList parentIndent = GetParentIndentation(root);
         SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string(' ', IndentSize)));
-        SyntaxTrivia newline = SyntaxFactory.CarriageReturnLineFeed;
 
-        // Flatten the tree into operands and operators
-        List<SyntaxNode> parts = new List<SyntaxNode>();
-        Flatten(root, parts);
-
-        if (parts.Count < 2)
-        {
-            return root;
-        }
-
-        // The first part stays flush or keeps original leading trivia
-        _ = parts[0];
-
-        for (int i = 1; i < parts.Count; i++)
-        {
-            SyntaxNode part = parts[i];
-
-            if (part is SyntaxToken token)
-            {
-                // Move operator to a new line with indentation
-                _ = token
-                    .WithLeadingTrivia(SyntaxFactory.TriviaList(newline).AddRange(itemIndent))
-                    .WithTrailingTrivia(SyntaxFactory.Space);
-
-                // Reconstruct (this is a simplified logic for demo, 
-                // in reality we'd rebuild the specific BinaryExpression or Pattern tree)
-                // For a robust implementation, we wrap tokens and operands.
-            }
-        }
-
-        // Simplified approach: Visit children and apply trivia to operators
+        // Delegate the actual token wrapping to the specialized visitor
         return new LogicalTriviaApplier(itemIndent).Visit(root);
     }
 
@@ -86,7 +56,8 @@ internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
         SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
         if (container != null)
         {
-            SyntaxTrivia lastWhitespace = container.GetLeadingTrivia().LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
+            SyntaxTriviaList leading = container.GetLeadingTrivia();
+            SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
             if (!lastWhitespace.IsKind(SyntaxKind.None))
             {
                 return SyntaxFactory.TriviaList(lastWhitespace);
@@ -95,29 +66,11 @@ internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
         return SyntaxFactory.TriviaList();
     }
 
-    private static void Flatten(SyntaxNode node, List<SyntaxNode> parts)
-    {
-        if (node is BinaryExpressionSyntax bin && IsLogical(bin.Kind()))
-        {
-            Flatten(bin.Left, parts);
-            parts.Add(bin.OperatorToken);
-            Flatten(bin.Right, parts);
-        }
-        else if (node is BinaryPatternSyntax pat)
-        {
-            Flatten(pat.Left, parts);
-            parts.Add(pat.OperatorToken);
-            Flatten(pat.Right, parts);
-        }
-        else
-        {
-            parts.Add(node);
-        }
-    }
-
     private class LogicalTriviaApplier : CSharpSyntaxRewriter
     {
         private readonly SyntaxTriviaList _indent;
+        private readonly SyntaxTrivia _newline = SyntaxFactory.CarriageReturnLineFeed;
+
         public LogicalTriviaApplier(SyntaxTriviaList indent)
         {
             _indent = indent;
@@ -125,19 +78,18 @@ internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
 
         public override SyntaxToken VisitToken(SyntaxToken token)
         {
-            if (token.IsKind(SyntaxKind.AmpersandAmpersandToken) ||
+            bool isLogicalOperator =
+                token.IsKind(SyntaxKind.AmpersandAmpersandToken) ||
                 token.IsKind(SyntaxKind.BarBarToken) ||
                 token.IsKind(SyntaxKind.AndKeyword) ||
-                token.IsKind(SyntaxKind.OrKeyword))
-            {
-                if (token.Parent is BinaryExpressionSyntax or BinaryPatternSyntax)
-                {
-                    return token
-                        .WithLeadingTrivia(SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed).AddRange(_indent))
-                        .WithTrailingTrivia(SyntaxFactory.Space);
-                }
-            }
-            return base.VisitToken(token);
+                token.IsKind(SyntaxKind.OrKeyword);
+
+            // If it's a logical operator within a binary expression or pattern, wrap it
+            return isLogicalOperator && (token.Parent is BinaryExpressionSyntax or BinaryPatternSyntax)
+                ? token
+                    .WithLeadingTrivia(SyntaxFactory.TriviaList(_newline).AddRange(_indent))
+                    .WithTrailingTrivia(SyntaxFactory.Space)
+                : base.VisitToken(token);
         }
     }
 }
