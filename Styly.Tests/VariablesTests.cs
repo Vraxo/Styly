@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class VariablesTests : FormatterTestBase
 {
     [Fact]
-    public static void Variables_VarToExplicit_BuiltInTypes()
+    public void Variables_VarToExplicit_BuiltInTypes()
     {
         string input = """
             void M()
@@ -24,10 +24,31 @@ public class VariablesTests : FormatterTestBase
 
         FormatOptions options = new()
         {
-            Variables = new VariablesOptions
+            Variables = new VariablesOptions { UseVar = UseVarOption.Never }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public void Variables_VarToExplicit_PreservesAnonymousTypes()
+    {
+        string input = """
+            void M()
             {
-                UseVar = UseVarOption.Never
+                var anon = new { Name = "Test" };
             }
+            """;
+        string expected = """
+            void M()
+            {
+                var anon = new { Name = "Test" };
+            }
+            """;
+
+        FormatOptions options = new()
+        {
+            Variables = new VariablesOptions { UseVar = UseVarOption.Never }
         };
 
         AssertFormatting(input, expected, options);
