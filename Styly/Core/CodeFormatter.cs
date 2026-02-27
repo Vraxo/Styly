@@ -61,9 +61,11 @@ public static class CodeFormatter
         if (options.Variables?.UseVar != null)
         {
             (SemanticModel? model, SyntaxNode? root) = await GetCtx();
+
             SyntaxNode newRoot = options.Variables.UseVar == UseVarOption.Never
                 ? new VarToExplicitTypeRewriter(model).Visit(root)
                 : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
+
             document = document.WithSyntaxRoot(newRoot);
         }
 

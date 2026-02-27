@@ -72,6 +72,7 @@ internal class IndentationRemover : CSharpSyntaxRewriter
     private static SyntaxTrivia ReduceWhitespace(SyntaxTrivia whitespace)
     {
         string text = whitespace.ToString();
+
         string newText = text.Length >= IndentSize
             ? text[IndentSize..]
             : string.Empty;

@@ -112,6 +112,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitEqualsValueClause(EqualsValueClauseSyntax node)
     {
         EqualsValueClauseSyntax visited = (EqualsValueClauseSyntax)base.VisitEqualsValueClause(node)!;
+
         return _options.Collection == InitializerStyle.MultiLine && visited.Value is CollectionExpressionSyntax
             ? visited.WithEqualsToken(visited.EqualsToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
             : visited;
@@ -120,6 +121,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitAssignmentExpression(AssignmentExpressionSyntax node)
     {
         AssignmentExpressionSyntax visited = (AssignmentExpressionSyntax)base.VisitAssignmentExpression(node)!;
+
         return _options.Collection == InitializerStyle.MultiLine && visited.Right is CollectionExpressionSyntax
             ? visited.WithOperatorToken(visited.OperatorToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
             : visited;

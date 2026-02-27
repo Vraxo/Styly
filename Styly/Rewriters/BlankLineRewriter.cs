@@ -15,7 +15,6 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)
     {
-        // 1. Enforce spacing between members (e.g. Global Statements)
         SyntaxList<MemberDeclarationSyntax> members = node.Members;
         SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(members, GetStatement);
 
@@ -24,15 +23,12 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
             node = node.WithMembers(newMembers);
         }
 
-        // 2. Enforce spacing between Usings and the first Member
         node = EnsureUsingSeparator(node, node.Usings, node.Members, (n, m) => n.WithMembers(m));
-
         return base.VisitCompilationUnit(node);
     }
 
     public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        // 1. Enforce spacing between members inside the namespace
         SyntaxList<MemberDeclarationSyntax> members = node.Members;
         SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(members, GetStatement);
 
@@ -41,15 +37,12 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
             node = node.WithMembers(newMembers);
         }
 
-        // 2. Enforce spacing between Usings and the first Member
         node = EnsureUsingSeparator(node, node.Usings, node.Members, (n, m) => n.WithMembers(m));
-
         return base.VisitNamespaceDeclaration(node);
     }
 
     public override SyntaxNode? VisitFileScopedNamespaceDeclaration(FileScopedNamespaceDeclarationSyntax node)
     {
-        // 1. Enforce spacing between members inside the namespace
         SyntaxList<MemberDeclarationSyntax> members = node.Members;
         SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(members, GetStatement);
 
@@ -58,10 +51,8 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
             node = node.WithMembers(newMembers);
         }
 
-        // 2. Enforce spacing between Usings and the first Member
         node = EnsureUsingSeparator(node, node.Usings, node.Members, (n, m) => n.WithMembers(m));
 
-        // 3. If no usings exist, enforce spacing between the namespace semicolon and the first member
         if (!node.Usings.Any() && node.Members.Any())
         {
             MemberDeclarationSyntax firstMember = node.Members[0];
@@ -102,7 +93,6 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
         return base.VisitSwitchSection(node);
     }
 
-    // --- Helpers ---
     private static TNode EnsureUsingSeparator<TNode>(TNode node, SyntaxList<UsingDirectiveSyntax> usings, SyntaxList<MemberDeclarationSyntax> members, Func<TNode, SyntaxList<MemberDeclarationSyntax>, TNode> withMembers)
         where TNode : SyntaxNode
     {
@@ -142,12 +132,13 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
             bool isPrevControlFlow = prevStmt != null && IsControlFlowStatement(prevStmt);
             bool isCurrControlFlow = currStmt != null && IsControlFlowStatement(currStmt);
 
-            bool isPrevMultiLineInit = prevStmt != null && ContainsMultiLineInitializer(prevStmt);
-            bool isCurrMultiLineInit = currStmt != null && ContainsMultiLineInitializer(currStmt);
+            // Detection for multi-line initializers OR ternary operations
+            bool isPrevMultiLineExpr = prevStmt != null && ContainsMultiLineExpression(prevStmt);
+            bool isCurrMultiLineExpr = currStmt != null && ContainsMultiLineExpression(currStmt);
 
             bool hasPreserveAnnotation = currentItem.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
 
-            bool shouldEnsure = (_options.EmptyLineBeforeControlFlow && isCurrControlFlow) || (_options.EmptyLineAfterControlFlow && isPrevControlFlow) || isPrevMultiLineInit || isCurrMultiLineInit || hasPreserveAnnotation;
+            bool shouldEnsure = (_options.EmptyLineBeforeControlFlow && isCurrControlFlow) || (_options.EmptyLineAfterControlFlow && isPrevControlFlow) || isPrevMultiLineExpr || isCurrMultiLineExpr || hasPreserveAnnotation;
 
             if (shouldEnsure)
             {
@@ -172,9 +163,10 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
         return statement is IfStatementSyntax or SwitchStatementSyntax or WhileStatementSyntax or DoStatementSyntax or ForStatementSyntax or ForEachStatementSyntax or TryStatementSyntax or LocalFunctionStatementSyntax;
     }
 
-    private static bool ContainsMultiLineInitializer(StatementSyntax statement)
+    private static bool ContainsMultiLineExpression(StatementSyntax statement)
     {
-        IEnumerable<SyntaxNode> nodes = statement.DescendantNodes().Where(n => n is InitializerExpressionSyntax or CollectionExpressionSyntax or AnonymousObjectCreationExpressionSyntax);
+        // Detects initializers, collections, anonymous types, and now conditional (ternary) expressions
+        IEnumerable<SyntaxNode> nodes = statement.DescendantNodes().Where(n => n is InitializerExpressionSyntax or CollectionExpressionSyntax or AnonymousObjectCreationExpressionSyntax or ConditionalExpressionSyntax);
 
         foreach (SyntaxNode? node in nodes)
         {

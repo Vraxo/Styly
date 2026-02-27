@@ -92,6 +92,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
             int requiredNewlines = (i == sortedList.Count - 1)
                 ? 2
                 : 1;
+
             current = SetTrailingNewlines(current, requiredNewlines);
 
             sortedList[i] = current;
