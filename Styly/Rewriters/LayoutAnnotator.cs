@@ -8,13 +8,14 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
 {
     public const string SingleLineAnnotationKind = "Styly_SingleLine";
     public const string PreserveBlankLineAnnotationKind = "Styly_PreserveBlankLine";
+    public const string MultiLineCallChainAnnotationKind = "Styly_MultiLineCallChain";
+
     private static bool IsSingleLine(SyntaxNode node)
     {
         FileLinePositionSpan lineSpan = node.GetLocation().GetLineSpan();
         return lineSpan.StartLinePosition.Line == lineSpan.EndLinePosition.Line;
     }
 
-    // --- Annotation Logic ---
     private static SyntaxList<T> AnnotateBlankLines<T>(SyntaxList<T> items)
         where T : SyntaxNode
     {
@@ -29,8 +30,6 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
         {
             T prev = items[i - 1];
             T curr = items[i];
-            // Check if there was originally a blank line between these nodes.
-            // We check the trivia between them (Trailing of prev + Leading of curr).
             if (HasBlankLineBetween(prev, curr))
             {
                 curr = curr.WithAdditionalAnnotations(new SyntaxAnnotation(PreserveBlankLineAnnotationKind));
@@ -45,41 +44,28 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
     private static bool HasBlankLineBetween(SyntaxNode prev, SyntaxNode curr)
     {
         int newlines = CountEndingNewlines(prev.GetTrailingTrivia()) + CountStartingNewlines(curr.GetLeadingTrivia());
-        // 2 newlines usually means one empty line in between.
         return newlines >= 2;
     }
 
     private static int CountEndingNewlines(SyntaxTriviaList trivia)
     {
-        int count = 0;
-
-        foreach (SyntaxTrivia t in trivia)
-        {
-            if (t.IsKind(SyntaxKind.EndOfLineTrivia))
-            {
-                count++;
-            }
-        }
-
-        return count;
+        return trivia.Count(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
     }
 
     private static int CountStartingNewlines(SyntaxTriviaList trivia)
     {
-        int count = 0;
-
-        foreach (SyntaxTrivia t in trivia)
-        {
-            if (t.IsKind(SyntaxKind.EndOfLineTrivia))
-            {
-                count++;
-            }
-        }
-
-        return count;
+        return trivia.Count(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
     }
 
-    // --- Visitor Overrides ---
+    public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+    {
+        // Annotate the root of a call chain if it is currently multi-line.
+        // This allows 'Preserve' mode to restore the layout after NormalizeWhitespace flattens it.
+        return node.Parent is not MemberAccessExpressionSyntax && !IsSingleLine(node)
+            ? base.VisitMemberAccessExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(MultiLineCallChainAnnotationKind))
+            : base.VisitMemberAccessExpression(node);
+    }
+
     public override SyntaxNode? VisitInitializerExpression(InitializerExpressionSyntax node)
     {
         return IsSingleLine(node)

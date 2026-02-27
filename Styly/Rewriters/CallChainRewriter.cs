@@ -9,6 +9,7 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
 {
     private readonly CallChainOptions _options;
     private const int IndentSize = 4;
+
     public CallChainRewriter(CallChainOptions options)
     {
         _options = options;
@@ -16,135 +17,132 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
     {
-        if (_options.Style == CallChainStyle.Preserve)
-        {
-            return base.VisitMemberAccessExpression(node);
-        }
-
-        // Only process the root of a call chain
-        if (node.Parent is MemberAccessExpressionSyntax)
-        {
-            return base.VisitMemberAccessExpression(node);
-        }
-
-        // Check if this is actually a chain (at least 2 calls)
-        return !IsChained(node)
+        return node.Parent is MemberAccessExpressionSyntax
             ? base.VisitMemberAccessExpression(node)
-            : _options.Style == CallChainStyle.MultiLine ? FormatMultiLine(node) : _options.Style == CallChainStyle.SingleLine ? FormatSingleLine(node) : base.VisitMemberAccessExpression(node);
+            : _options.Style == CallChainStyle.Preserve
+            ? node.HasAnnotations(LayoutAnnotator.MultiLineCallChainAnnotationKind) ? FormatMultiLine(node) : node
+            : !IsChained(node)
+            ? base.VisitMemberAccessExpression(node)
+            : _options.Style == CallChainStyle.MultiLine ? FormatMultiLine(node) : FormatSingleLine(node);
     }
 
     private static bool IsChained(MemberAccessExpressionSyntax node)
     {
-        // Count depth of chain
-        int depth = 0;
-        ExpressionSyntax current = node;
+        int count = 1;
 
-        while (current is MemberAccessExpressionSyntax memberAccess)
+        if (node.Parent is InvocationExpressionSyntax)
         {
-            depth++;
-
-            if (depth >= 2)
-            {
-                return true;
-            }
-
-            current = memberAccess.Expression;
+            count++;
         }
 
-        // Also check if any part is an invocation
-        return ContainsInvocation(node);
+        ExpressionSyntax? current = node.Expression;
+
+        while (true)
+        {
+            if (current is MemberAccessExpressionSyntax memberAccess)
+            {
+                count++;
+                current = memberAccess.Expression;
+            }
+            else if (current is InvocationExpressionSyntax invocation)
+            {
+                count++;
+                current = invocation.Expression;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return count >= 2;
     }
 
-    private static bool ContainsInvocation(ExpressionSyntax node)
-    {
-        return node is InvocationExpressionSyntax 
-            || (node is MemberAccessExpressionSyntax memberAccess 
-            && (ContainsInvocation(memberAccess.Expression) 
-            || ContainsInvocation(memberAccess.Name)));
-    }
-
-    private SyntaxNode FormatMultiLine(MemberAccessExpressionSyntax node)
+    private static SyntaxNode FormatMultiLine(MemberAccessExpressionSyntax node)
     {
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
-        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
+        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string(' ', IndentSize)));
         SyntaxTrivia newline = SyntaxFactory.CarriageReturnLineFeed;
-        // Build the chain from the root expression outward
-        ExpressionSyntax? rootExpression = FindRootExpression(node);
 
-        if (rootExpression is null)
-        {
-            return base.VisitMemberAccessExpression(node);
-        }
-
-        // Start with root on its own line, then wrap each access
         ExpressionSyntax wrapped = WrapChainRecursive(node, itemIndent, newline);
 
         return wrapped.WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
     }
 
-    private static ExpressionSyntax WrapChainRecursive(MemberAccessExpressionSyntax node, SyntaxTriviaList indent, SyntaxTrivia newline)
+    private static ExpressionSyntax WrapChainRecursive(ExpressionSyntax node, SyntaxTriviaList indent, SyntaxTrivia newline)
     {
-        // If the expression is another member access, wrap it first
-        if (node.Expression is MemberAccessExpressionSyntax innerMember)
+        if (node is InvocationExpressionSyntax invocation)
         {
-            ExpressionSyntax wrappedInner = WrapChainRecursive(innerMember, indent, newline);
-            // Create the dot token with leading newline and indent
-            SyntaxToken dotToken = SyntaxFactory.Token(SyntaxKind.DotToken).WithLeadingTrivia(SyntaxFactory.TriviaList(newline).AddRange(indent));
-            // Get the name without leading trivia
-            SimpleNameSyntax name = node.Name.WithoutLeadingTrivia();
+            ExpressionSyntax wrappedExpression = WrapChainRecursive(invocation.Expression, indent, newline);
 
-            return SyntaxFactory.MemberAccessExpression(node.Kind(), wrappedInner, dotToken, name);
+            return SyntaxFactory.InvocationExpression(
+                wrappedExpression,
+                invocation.ArgumentList
+            ).WithTrailingTrivia(StripTrailingNewlines(invocation.GetTrailingTrivia()));
         }
-        else
+
+        if (node is MemberAccessExpressionSyntax memberAccess)
         {
-            // Base case: first element in chain
-            // The root expression keeps its position, dot goes on new line
-            SyntaxToken dotToken = SyntaxFactory.Token(SyntaxKind.DotToken).WithLeadingTrivia(SyntaxFactory.TriviaList(newline).AddRange(indent));
+            ExpressionSyntax wrappedInner = WrapChainRecursive(memberAccess.Expression, indent, newline);
 
-            SimpleNameSyntax name = node.Name.WithoutLeadingTrivia();
+            SyntaxToken dotToken = SyntaxFactory.Token(SyntaxKind.DotToken)
+                .WithLeadingTrivia(SyntaxFactory.TriviaList(newline).AddRange(indent));
 
-            return SyntaxFactory.MemberAccessExpression(node.Kind(), node.Expression.WithoutTrailingTrivia(), dotToken, name);
+            SimpleNameSyntax name = memberAccess.Name.WithoutLeadingTrivia();
+            name = name.WithTrailingTrivia(StripTrailingNewlines(name.GetTrailingTrivia()));
+
+            return SyntaxFactory.MemberAccessExpression(
+                memberAccess.Kind(),
+                wrappedInner,
+                dotToken,
+                name);
         }
+
+        return node.WithTrailingTrivia(StripTrailingNewlines(node.GetTrailingTrivia()));
+    }
+
+    private static SyntaxTriviaList StripTrailingNewlines(SyntaxTriviaList trivia)
+    {
+        return SyntaxFactory.TriviaList(trivia.Where(t => !t.IsKind(SyntaxKind.EndOfLineTrivia)));
     }
 
     private static SyntaxNode FormatSingleLine(MemberAccessExpressionSyntax node)
     {
-        // Flatten the chain to single line by removing all newlines between parts
         return FlattenChain(node).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
     }
 
-    private static ExpressionSyntax FlattenChain(MemberAccessExpressionSyntax node)
+    private static ExpressionSyntax FlattenChain(ExpressionSyntax node)
     {
-        // Recursively flatten inner expressions
-        ExpressionSyntax expression = node.Expression is MemberAccessExpressionSyntax innerMember
-            ? FlattenChain(innerMember)
-            : node.Expression.WithoutTrailingTrivia();
-        // Create dot with just a leading space (if needed) but no newlines
-        SyntaxToken dotToken = SyntaxFactory.Token(SyntaxKind.DotToken).WithLeadingTrivia(SyntaxFactory.TriviaList()).WithTrailingTrivia(SyntaxFactory.TriviaList());
-
-        SimpleNameSyntax name = node.Name.WithoutLeadingTrivia().WithoutTrailingTrivia();
-
-        ExpressionSyntax result = SyntaxFactory.MemberAccessExpression(node.Kind(), expression, dotToken, name);
-
-        return result;
-    }
-
-    private static ExpressionSyntax? FindRootExpression(MemberAccessExpressionSyntax node)
-    {
-        ExpressionSyntax current = node;
-
-        while (current is MemberAccessExpressionSyntax memberAccess)
+        if (node is InvocationExpressionSyntax invocation)
         {
-            current = memberAccess.Expression;
+            return SyntaxFactory.InvocationExpression(
+                FlattenChain(invocation.Expression),
+                invocation.ArgumentList);
         }
 
-        return current;
+        if (node is MemberAccessExpressionSyntax memberAccess)
+        {
+            ExpressionSyntax expression = FlattenChain(memberAccess.Expression);
+
+            SyntaxToken dotToken = SyntaxFactory.Token(SyntaxKind.DotToken)
+                .WithLeadingTrivia(SyntaxFactory.TriviaList())
+                .WithTrailingTrivia(SyntaxFactory.TriviaList());
+
+            SimpleNameSyntax name = memberAccess.Name.WithoutLeadingTrivia().WithoutTrailingTrivia();
+
+            return SyntaxFactory.MemberAccessExpression(
+                memberAccess.Kind(),
+                expression,
+                dotToken,
+                name).WithoutLeadingTrivia().WithoutTrailingTrivia();
+        }
+
+        return node.WithoutTrailingTrivia();
     }
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
-            or MemberDeclarationSyntax);
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
 
         if (container is not null)
         {
