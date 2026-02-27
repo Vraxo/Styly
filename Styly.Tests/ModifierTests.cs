@@ -23,6 +23,7 @@ public class ModifiersTests : FormatterTestBase
                 }
             }
             """;
+
         string expected = """
             class C
             {
@@ -32,6 +33,7 @@ public class ModifiersTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 
@@ -44,12 +46,14 @@ public class ModifiersTests : FormatterTestBase
                 int Add(int a, int b) => a + b;
             }
             """;
+
         string expected = """
             class C
             {
                 static int Add(int a, int b) => a + b;
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 
@@ -63,6 +67,7 @@ public class ModifiersTests : FormatterTestBase
                 void Update(C other) => other.Val = 5;
             }
             """;
+
         string expected = """
             class C
             {
@@ -70,6 +75,7 @@ public class ModifiersTests : FormatterTestBase
                 static void Update(C other) => other.Val = 5;
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 
@@ -83,6 +89,7 @@ public class ModifiersTests : FormatterTestBase
                 void M() => G++;
             }
             """;
+
         string expected = """
             class C
             {
@@ -90,6 +97,7 @@ public class ModifiersTests : FormatterTestBase
                 static void M() => G++;
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 
@@ -103,6 +111,7 @@ public class ModifiersTests : FormatterTestBase
                 void M() => _f = 1;
             }
             """;
+
         string expected = """
             class C
             {
@@ -110,6 +119,7 @@ public class ModifiersTests : FormatterTestBase
                 void M() => _f = 1;
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 
@@ -123,6 +133,7 @@ public class ModifiersTests : FormatterTestBase
                 void M() => B = 2;
             }
             """;
+
         string expected = """
             class Base
             {
@@ -134,6 +145,7 @@ public class ModifiersTests : FormatterTestBase
                 void M() => B = 2;
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 
@@ -146,6 +158,7 @@ public class ModifiersTests : FormatterTestBase
                 public virtual void M() { }
             }
             """;
+
         string expected = """
             class C
             {
@@ -154,6 +167,7 @@ public class ModifiersTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 
@@ -167,6 +181,7 @@ public class ModifiersTests : FormatterTestBase
                 void I.M() { }
             }
             """;
+
         string expected = """
             interface I
             {
@@ -180,6 +195,7 @@ public class ModifiersTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 
@@ -192,6 +208,7 @@ public class ModifiersTests : FormatterTestBase
                 public void M() { }
             }
             """;
+
         string expected = """
             class C
             {
@@ -200,6 +217,7 @@ public class ModifiersTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, _options);
     }
 }

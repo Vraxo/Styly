@@ -8,6 +8,7 @@ public class BasicFormattingTests : FormatterTestBase
     public static void Cleanup_FixesSpacing_ControlFlow()
     {
         string input = "void M(){if(true){}}";
+
         string expected = """
             void M()
             {
@@ -16,6 +17,7 @@ public class BasicFormattingTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, new FormatOptions());
     }
 
@@ -32,6 +34,7 @@ public class BasicFormattingTests : FormatterTestBase
                 }
             }
             """;
+
         string expected = """
             void M()
             {
@@ -42,6 +45,7 @@ public class BasicFormattingTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, new FormatOptions());
     }
 
@@ -54,12 +58,14 @@ public class BasicFormattingTests : FormatterTestBase
                 int    x  =   1;
             }
             """;
+
         string expected = """
             void M()
             {
                 int x = 1;
             }
             """;
+
         AssertFormatting(input, expected, new FormatOptions());
     }
 }

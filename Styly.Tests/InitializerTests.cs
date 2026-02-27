@@ -8,6 +8,7 @@ public class InitializerTests : FormatterTestBase
     public static void Initializers_Object_MultiLine()
     {
         string input = "var o = new Obj { A = 1, B = 2 };";
+
         string expected = """
             var o = new Obj
             {
@@ -45,6 +46,7 @@ public class InitializerTests : FormatterTestBase
     public static void Initializers_Anonymous_MultiLine()
     {
         string input = "var a = new { X = 1, Y = 2 };";
+
         string expected = """
             var a = new
             {
@@ -52,6 +54,7 @@ public class InitializerTests : FormatterTestBase
                 Y = 2
             };
             """;
+
         FormatOptions options = new();
         options.Initializers.AnonymousType = InitializerStyle.MultiLine;
         AssertFormatting(input, expected, options);
@@ -61,6 +64,7 @@ public class InitializerTests : FormatterTestBase
     public static void Initializers_Collection_MultiLine()
     {
         string input = "var l = new List<int> { 1, 2, 3 };";
+
         string expected = """
             var l = new List<int>
             {
@@ -69,6 +73,7 @@ public class InitializerTests : FormatterTestBase
                 3
             };
             """;
+
         FormatOptions options = new();
         options.Initializers.Collection = InitializerStyle.MultiLine;
         AssertFormatting(input, expected, options);
@@ -78,6 +83,7 @@ public class InitializerTests : FormatterTestBase
     public static void Initializers_CollectionExpression_MultiLine()
     {
         string input = "var x = [1, 2];";
+
         string expected = """
             var x =
             [
@@ -85,6 +91,7 @@ public class InitializerTests : FormatterTestBase
                 2
             ];
             """;
+
         FormatOptions options = new();
         options.Initializers.Collection = InitializerStyle.MultiLine;
         AssertFormatting(input, expected, options);

@@ -14,6 +14,7 @@ public class SpacingTests : FormatterTestBase
                 if (true) { }
             }
             """;
+
         string expected = """
             void M()
             {
@@ -24,6 +25,7 @@ public class SpacingTests : FormatterTestBase
                 }
             }
             """;
+
         FormatOptions options = new();
         options.Spacing.EmptyLineBeforeControlFlow = true;
         AssertFormatting(input, expected, options);
@@ -41,6 +43,7 @@ public class SpacingTests : FormatterTestBase
                 for (int i = 0; i < 5; i++) { }
             }
             """;
+
         string expected = """
             void M()
             {
@@ -55,6 +58,7 @@ public class SpacingTests : FormatterTestBase
                 }
             }
             """;
+
         FormatOptions options = new();
         options.Spacing.EmptyLineBeforeControlFlow = true;
         AssertFormatting(input, expected, options);
@@ -70,6 +74,7 @@ public class SpacingTests : FormatterTestBase
                 Console.WriteLine();
             }
             """;
+
         string expected = """
             void M()
             {
@@ -80,6 +85,7 @@ public class SpacingTests : FormatterTestBase
                 Console.WriteLine();
             }
             """;
+
         FormatOptions options = new();
         options.Spacing.EmptyLineAfterControlFlow = true;
         AssertFormatting(input, expected, options);
@@ -96,6 +102,7 @@ public class SpacingTests : FormatterTestBase
                 End();
             }
             """;
+
         string expected = """
             void M()
             {
@@ -108,6 +115,7 @@ public class SpacingTests : FormatterTestBase
                 End();
             }
             """;
+
         FormatOptions options = new();
         options.Spacing.EmptyLineBeforeControlFlow = true;
         options.Spacing.EmptyLineAfterControlFlow = true;
@@ -124,6 +132,7 @@ public class SpacingTests : FormatterTestBase
                 Console.WriteLine("Args");
             }
             """;
+
         string expected = """
             Console.WriteLine("Start");
 
@@ -132,6 +141,7 @@ public class SpacingTests : FormatterTestBase
                 Console.WriteLine("Args");
             }
             """;
+
         FormatOptions options = new();
         options.Spacing.EmptyLineBeforeControlFlow = true;
         AssertFormatting(input, expected, options);

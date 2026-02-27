@@ -17,6 +17,7 @@ public class NamespaceTests : FormatterTestBase
                 }
             }
             """;
+
         string expected = """
             namespace MySpace;
 

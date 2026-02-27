@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class NullCheckPatternTests : FormatterTestBase
 {
     [Fact]
-    public void NullCheck_EqualsNull_IsConvertedTo_IsNull()
+    public static void NullCheck_EqualsNull_IsConvertedTo_IsNull()
     {
         string input = """
             void M(object x)
@@ -30,7 +30,7 @@ public class NullCheckPatternTests : FormatterTestBase
     }
 
     [Fact]
-    public void NullCheck_NotEqualsNull_IsConvertedTo_IsNotNull()
+    public static void NullCheck_NotEqualsNull_IsConvertedTo_IsNotNull()
     {
         string input = """
             void M(object x)
@@ -55,7 +55,7 @@ public class NullCheckPatternTests : FormatterTestBase
     }
 
     [Fact]
-    public void NullCheck_ReverseOrder_IsConverted()
+    public static void NullCheck_ReverseOrder_IsConverted()
     {
         string input = """
             void M(object x)
@@ -80,7 +80,7 @@ public class NullCheckPatternTests : FormatterTestBase
     }
 
     [Fact]
-    public void NullCheck_ComplexExpression_IsConverted()
+    public static void NullCheck_ComplexExpression_IsConverted()
     {
         string input = """
             void M(string s)

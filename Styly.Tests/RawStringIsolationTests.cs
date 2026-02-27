@@ -5,7 +5,7 @@ namespace Styly.Tests;
 public class RawStringIsolationTests : FormatterTestBase
 {
     [Fact]
-    public void Isolation_MultiLineVerbatim_ConvertsAndIsolates()
+    public static void Isolation_MultiLineVerbatim_ConvertsAndIsolates()
     {
         string input = """
             void M()
@@ -16,7 +16,6 @@ public class RawStringIsolationTests : FormatterTestBase
                 var b = 2;
             }
             """;
-
         // Fixed: The closing delimiter of the inner raw string 
         // is now aligned with 'var s', matching the rewriter's logic.
         string expected = """"
@@ -41,7 +40,7 @@ public class RawStringIsolationTests : FormatterTestBase
     }
 
     [Fact]
-    public void Isolation_SingleLineStandard_DoesNotIsolate()
+    public static void Isolation_SingleLineStandard_DoesNotIsolate()
     {
         string input = """
             void M()

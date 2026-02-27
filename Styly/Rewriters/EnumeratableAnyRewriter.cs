@@ -41,6 +41,7 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
     private bool IsLinqAny(InvocationExpressionSyntax node)
     {
         SymbolInfo symbolInfo = _semanticModel.GetSymbolInfo(node);
+
         return symbolInfo.Symbol is IMethodSymbol methodSymbol 
             && methodSymbol.Name == "Any" 
             && methodSymbol.ContainingType.ToDisplayString() == "System.Linq.Enumerable";

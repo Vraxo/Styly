@@ -13,6 +13,7 @@ public class UsingsTests : FormatterTestBase
             using System;
             using Xunit;
             """;
+
         string expected = """
             using System;
             using System.Linq;

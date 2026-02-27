@@ -36,6 +36,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, new FormatOptions());
     }
 
@@ -54,6 +55,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         string expected = """
             using System.Linq;
 
@@ -68,6 +70,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, new FormatOptions());
     }
 
@@ -86,6 +89,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         string expected = """
             using System.Collections.Generic;
             using System.Linq;
@@ -100,6 +104,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, new FormatOptions());
     }
 
@@ -119,6 +124,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         string expected = """
             using System.Collections.Generic;
             using System.Linq;
@@ -134,6 +140,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         AssertFormatting(input, expected, new FormatOptions());
     }
 
@@ -153,6 +160,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         string expected = """
             using System.Collections.Generic;
 
@@ -195,6 +203,7 @@ public class EnumerableAnyTests : FormatterTestBase
                 }
             }
             """;
+
         string expected = """
             using System.Collections.Generic;
 

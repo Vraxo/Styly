@@ -14,6 +14,7 @@ public class VariablesTests : FormatterTestBase
                 var s = "hello";
             }
             """;
+
         string expected = """
             void M()
             {
@@ -42,6 +43,7 @@ public class VariablesTests : FormatterTestBase
                 var anon = new { Name = "Test" };
             }
             """;
+
         string expected = """
             void M()
             {

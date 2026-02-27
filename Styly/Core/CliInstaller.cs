@@ -42,6 +42,7 @@ public static class CliInstaller
 
                         Successfully added the application directory to your user PATH.
             """);
+
             WriteSuccess("Please restart your terminal session for the changes to take effect.");
         }
         catch (Exception ex)

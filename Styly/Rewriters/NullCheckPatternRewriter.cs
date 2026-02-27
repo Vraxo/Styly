@@ -11,7 +11,7 @@ internal class NullCheckPatternRewriter : CSharpSyntaxRewriter
         bool isEquals = node.IsKind(SyntaxKind.EqualsExpression);
         bool isNotEquals = node.IsKind(SyntaxKind.NotEqualsExpression);
 
-        if (!isEquals
+        if (!isEquals 
             && !isNotEquals)
         {
             return base.VisitBinaryExpression(node);
@@ -39,25 +39,13 @@ internal class NullCheckPatternRewriter : CSharpSyntaxRewriter
 
         if (isEquals)
         {
-            return SyntaxFactory.IsPatternExpression(
-                expression.WithoutTrailingTrivia(),
-                SyntaxFactory.Token(SyntaxKind.IsKeyword).WithLeadingTrivia(SyntaxFactory.Space).WithTrailingTrivia(SyntaxFactory.Space),
-                nullPattern)
-                .WithLeadingTrivia(node.GetLeadingTrivia())
-                .WithTrailingTrivia(node.GetTrailingTrivia());
+            return SyntaxFactory.IsPatternExpression(expression.WithoutTrailingTrivia(), SyntaxFactory.Token(SyntaxKind.IsKeyword).WithLeadingTrivia(SyntaxFactory.Space).WithTrailingTrivia(SyntaxFactory.Space), nullPattern).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
         }
 
         // x is not null
         // The 'not' keyword provides the space after 'is'
-        UnaryPatternSyntax notPattern = SyntaxFactory.UnaryPattern(
-            SyntaxFactory.Token(SyntaxKind.NotKeyword).WithTrailingTrivia(SyntaxFactory.Space),
-            nullPattern);
+        UnaryPatternSyntax notPattern = SyntaxFactory.UnaryPattern(SyntaxFactory.Token(SyntaxKind.NotKeyword).WithTrailingTrivia(SyntaxFactory.Space), nullPattern);
 
-        return SyntaxFactory.IsPatternExpression(
-            expression.WithoutTrailingTrivia(),
-            SyntaxFactory.Token(SyntaxKind.IsKeyword).WithLeadingTrivia(SyntaxFactory.Space).WithTrailingTrivia(SyntaxFactory.Space),
-            notPattern)
-            .WithLeadingTrivia(node.GetLeadingTrivia())
-            .WithTrailingTrivia(node.GetTrailingTrivia());
+        return SyntaxFactory.IsPatternExpression(expression.WithoutTrailingTrivia(), SyntaxFactory.Token(SyntaxKind.IsKeyword).WithLeadingTrivia(SyntaxFactory.Space).WithTrailingTrivia(SyntaxFactory.Space), notPattern).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
     }
 }
