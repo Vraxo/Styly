@@ -13,6 +13,8 @@ Format:
     AnonymousType: MultiLine
   Ternary:
     Style: MultiLine
+  LogicalExpressions:
+    Style: MultiLine
   RawStrings:
     PreferRawForMultiline: true
   Spacing:

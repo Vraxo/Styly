@@ -14,4 +14,5 @@ public class FormatOptions
     public OptimizationOptions Optimization { get; set; } = new();
     public TernaryOptions Ternary { get; set; } = new();
     public RawStringsOptions RawStrings { get; set; } = new();
+    public LogicalExpressionOptions LogicalExpressions { get; set; } = new();
 }

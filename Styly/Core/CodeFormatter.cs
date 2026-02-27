@@ -95,7 +95,7 @@ public static class CodeFormatter
             IEnumerable<UsingDirectiveSyntax> unused = model.GetDiagnostics()
                 .Where(d => d.Id == "CS8019")
                 .Select(d => root.FindNode(d.Location.SourceSpan))
-                .OfType<UsingDirectiveSyntax>();
+                .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.UsingDirectiveSyntax>();
 
             if (unused.Any())
             {
@@ -112,8 +112,8 @@ public static class CodeFormatter
         root = new InitializerRewriter(options.Initializers).Visit(root);
         root = new TernaryRewriter(options.Ternary).Visit(root);
         root = new RawStringRewriter(options.RawStrings).Visit(root);
+        root = new LogicalExpressionRewriter(options.LogicalExpressions).Visit(root);
 
-        // Decomposed spacing rewriters
         root = new StructuralSpacingRewriter().Visit(root);
         root = new VerticalRhythmRewriter(options.Spacing).Visit(root);
 
