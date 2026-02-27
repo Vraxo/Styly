@@ -132,13 +132,12 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
             bool isPrevControlFlow = prevStmt != null && IsControlFlowStatement(prevStmt);
             bool isCurrControlFlow = currStmt != null && IsControlFlowStatement(currStmt);
 
-            // Detection for multi-line initializers OR ternary operations
             bool isPrevMultiLineExpr = prevStmt != null && ContainsMultiLineExpression(prevStmt);
             bool isCurrMultiLineExpr = currStmt != null && ContainsMultiLineExpression(currStmt);
 
             bool hasPreserveAnnotation = currentItem.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
 
-            bool shouldEnsure = (_options.EmptyLineBeforeControlFlow && isCurrControlFlow) || (_options.EmptyLineAfterControlFlow && isPrevControlFlow) || isPrevMultiLineExpr || isCurrMultiLineExpr || hasPreserveAnnotation;
+            bool shouldEnsure = (_options.EmptyLineBeforeControlFlow && isCurrControlFlow) || (_options.EmptyLineAfterControlFlow && isPrevControlFlow) || (_options.EmptyLineAroundMultiLineExpression && (isPrevMultiLineExpr || isCurrMultiLineExpr)) || hasPreserveAnnotation;
 
             if (shouldEnsure)
             {
@@ -165,7 +164,6 @@ internal class BlankLineRewriter : CSharpSyntaxRewriter
 
     private static bool ContainsMultiLineExpression(StatementSyntax statement)
     {
-        // Detects initializers, collections, anonymous types, and now conditional (ternary) expressions
         IEnumerable<SyntaxNode> nodes = statement.DescendantNodes().Where(n => n is InitializerExpressionSyntax or CollectionExpressionSyntax or AnonymousObjectCreationExpressionSyntax or ConditionalExpressionSyntax);
 
         foreach (SyntaxNode? node in nodes)
