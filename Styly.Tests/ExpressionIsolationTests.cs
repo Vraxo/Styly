@@ -7,25 +7,29 @@ public class ExpressionIsolationTests : FormatterTestBase
     [Fact]
     public static void Isolation_MultiLineTernary_AddsBlankLines()
     {
-        string input = @"
-void M()
-{
-    var a = 1;
-    var b = true ? ""long_branch_1"" : ""long_branch_2"";
-    var c = 2;
-}";
+        string input = """
 
-        string expected = @"
-void M()
-{
-    var a = 1;
+            void M()
+            {
+                var a = 1;
+                var b = true ? "long_branch_1" : "long_branch_2";
+                var c = 2;
+            }
+        """;
 
-    var b = true
-        ? ""long_branch_1""
-        : ""long_branch_2"";
+        string expected = """
 
-    var c = 2;
-}";
+            void M()
+            {
+                var a = 1;
+
+                var b = true
+                    ? "long_branch_1"
+                    : "long_branch_2";
+
+                var c = 2;
+            }
+        """;
 
         FormatOptions options = new();
         options.Ternary.Style = TernaryStyle.MultiLine;
@@ -37,27 +41,31 @@ void M()
     [Fact]
     public static void Isolation_MultiLineObjectInitializer_AddsBlankLines()
     {
-        string input = @"
-void M()
-{
-    var x = 10;
-    var o = new Obj { A = 1, B = 2 };
-    var y = 20;
-}";
+        string input = """
 
-        string expected = @"
-void M()
-{
-    var x = 10;
+            void M()
+            {
+                var x = 10;
+                var o = new Obj { A = 1, B = 2 };
+                var y = 20;
+            }
+        """;
 
-    var o = new Obj
-    {
-        A = 1,
-        B = 2
-    };
+        string expected = """
 
-    var y = 20;
-}";
+            void M()
+            {
+                var x = 10;
+
+                var o = new Obj
+                {
+                    A = 1,
+                    B = 2
+                };
+
+                var y = 20;
+            }
+        """;
 
         FormatOptions options = new();
         options.Initializers.Object = InitializerStyle.MultiLine;
@@ -69,24 +77,28 @@ void M()
     [Fact]
     public static void Isolation_Disabled_KeepsDensity()
     {
-        string input = @"
-void M()
-{
-    var a = 1;
-    var b = true ? ""1"" : ""2"";
-    var c = 2;
-}";
+        string input = """
+
+            void M()
+            {
+                var a = 1;
+                var b = true ? "1" : "2";
+                var c = 2;
+            }
+        """;
 
         // Even with MultiLine ternary, no blank lines are added if isolation is false.
-        string expected = @"
-void M()
-{
-    var a = 1;
-    var b = true
-        ? ""1""
-        : ""2"";
-    var c = 2;
-}";
+        string expected = """
+
+            void M()
+            {
+                var a = 1;
+                var b = true
+                    ? "1"
+                    : "2";
+                var c = 2;
+            }
+        """;
 
         FormatOptions options = new();
         options.Ternary.Style = TernaryStyle.MultiLine;
@@ -98,32 +110,36 @@ void M()
     [Fact]
     public static void Isolation_MultipleMixed_HandlesFlow()
     {
-        string input = @"
-void M()
-{
-    var a = 1;
-    var b = true ? ""1"" : ""2"";
-    var c = new { X = 1, Y = 2 };
-    var d = 4;
-}";
+        string input = """
 
-        string expected = @"
-void M()
-{
-    var a = 1;
+            void M()
+            {
+                var a = 1;
+                var b = true ? "1" : "2";
+                var c = new { X = 1, Y = 2 };
+                var d = 4;
+            }
+        """;
 
-    var b = true
-        ? ""1""
-        : ""2"";
+        string expected = """
 
-    var c = new
-    {
-        X = 1,
-        Y = 2
-    };
+            void M()
+            {
+                var a = 1;
 
-    var d = 4;
-}";
+                var b = true
+                    ? "1"
+                    : "2";
+
+                var c = new
+                {
+                    X = 1,
+                    Y = 2
+                };
+
+                var d = 4;
+            }
+        """;
 
         FormatOptions options = new();
         options.Ternary.Style = TernaryStyle.MultiLine;

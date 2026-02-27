@@ -1,9 +1,9 @@
-﻿using Microsoft.CodeAnalysis;
+using System.Text;
+using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Styly.Configuration;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Styly.Rewriters;
 
@@ -11,7 +11,6 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 {
     private readonly RawStringsOptions _options;
     private const int IndentSize = 4;
-
     public RawStringRewriter(RawStringsOptions options)
     {
         _options = options;
@@ -27,7 +26,9 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
         string value = node.Token.ValueText;
 
         // "Truly Multiline" check: must contain a newline
-        return !value.Contains('\n') && !value.Contains('\r') ? base.VisitLiteralExpression(node) : ConvertToRawString(node, value);
+        return !value.Contains('\n') && !value.Contains('\r')
+            ? base.VisitLiteralExpression(node)
+            : ConvertToRawString(node, value);
     }
 
     private static SyntaxNode ConvertToRawString(LiteralExpressionSyntax node, string value)
@@ -40,7 +41,7 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
         // 2. Get indentation
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
         string indentStr = parentIndent.ToString();
-        string contentIndent = indentStr + new string(' ', IndentSize);
+        string contentIndent = indentStr + new string (' ', IndentSize);
 
         // 3. Format lines
         string[] lines = MyRegex().Split(value);
@@ -68,15 +69,14 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
         // and requires internal Roslyn bits or very specific factory calls.
         SyntaxToken rawToken = SyntaxFactory.ParseToken(sb.ToString());
 
-        return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, rawToken)
-            .WithLeadingTrivia(node.GetLeadingTrivia())
-            .WithTrailingTrivia(node.GetTrailingTrivia());
+        return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, rawToken).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
     }
 
     private static int GetMaxSequentialQuotes(string text)
     {
         int max = 0;
         int current = 0;
+
         foreach (char c in text)
         {
             if (c == '"')
@@ -89,21 +89,25 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
                 current = 0;
             }
         }
+
         return max;
     }
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
         SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
+
         if (container != null)
         {
             SyntaxTriviaList leading = container.GetLeadingTrivia();
             SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
+
             if (!lastWhitespace.IsKind(SyntaxKind.None))
             {
                 return SyntaxFactory.TriviaList(lastWhitespace);
             }
         }
+
         return SyntaxFactory.TriviaList();
     }
 

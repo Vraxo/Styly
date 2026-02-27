@@ -38,7 +38,10 @@ public static class CliInstaller
 
             Environment.SetEnvironmentVariable("PATH", newPath, scope);
 
-            WriteSuccess("\nSuccessfully added the application directory to your user PATH.");
+            WriteSuccess("""
+
+                Successfully added the application directory to your user PATH.
+            """);
             WriteSuccess("Please restart your terminal session for the changes to take effect.");
         }
         catch (Exception ex)

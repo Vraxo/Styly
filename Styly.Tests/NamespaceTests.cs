@@ -9,24 +9,28 @@ public class NamespaceTests : FormatterTestBase
     [Fact]
     public static void Namespace_BlockToFile_ConvertsAndRemovesIndentation()
     {
-        string input = @"
-namespace MySpace
-{
-    public class MyClass
-    {
-        public void M() { }
-    }
-}";
-        string expected = @"
-namespace MySpace;
+        string input = """
 
-public class MyClass
-{
-    public void M()
-    {
-    }
-}
-";
+            namespace MySpace
+            {
+                public class MyClass
+                {
+                    public void M() { }
+                }
+            }
+        """;
+        string expected = """
+
+            namespace MySpace;
+
+            public class MyClass
+            {
+                public void M()
+                {
+                }
+            }
+
+        """;
 
         FormatOptions options = new()
         {
@@ -39,21 +43,25 @@ public class MyClass
     [Fact]
     public static void Namespace_FileToBlock_ConvertsAndAddsIndentation()
     {
-        string input = @"
-namespace MySpace;
+        string input = """
 
-public class MyClass
-{
-}
-";
-        string expected = @"
-namespace MySpace
-{
-    public class MyClass
-    {
-    }
-}
-";
+            namespace MySpace;
+
+            public class MyClass
+            {
+            }
+
+        """;
+        string expected = """
+
+            namespace MySpace
+            {
+                public class MyClass
+                {
+                }
+            }
+
+        """;
 
         FormatOptions options = new()
         {
