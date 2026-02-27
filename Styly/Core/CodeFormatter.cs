@@ -113,7 +113,7 @@ public static class CodeFormatter
         if (options.Usings.RemoveUnused)
         {
             (SemanticModel? model, SyntaxNode? root) = await GetCtx();
-            IEnumerable<UsingDirectiveSyntax> unused = model.GetDiagnostics().Where(d => d.Id == "CS8019").Select(d => root.FindNode(d.Location.SourceSpan)).OfType<Microsoft.CodeAnalysis.CSharp.Syntax.UsingDirectiveSyntax>();
+            IEnumerable<UsingDirectiveSyntax> unused = model.GetDiagnostics().Where(d => d.Id == "CS8019").Select(d => root.FindNode(d.Location.SourceSpan)).OfType<UsingDirectiveSyntax>();
 
             if (unused.Any())
             {
@@ -131,6 +131,7 @@ public static class CodeFormatter
         root = new TernaryRewriter(options.Ternary).Visit(root);
         root = new RawStringRewriter(options.RawStrings).Visit(root);
         root = new LogicalExpressionRewriter(options.LogicalExpressions).Visit(root);
+        root = new CallChainRewriter(options.CallChain).Visit(root);
 
         root = new StructuralSpacingRewriter().Visit(root);
         root = new VerticalRhythmRewriter(options.Spacing).Visit(root);

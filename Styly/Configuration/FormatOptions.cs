@@ -15,4 +15,5 @@ public class FormatOptions
     public TernaryOptions Ternary { get; set; } = new();
     public RawStringsOptions RawStrings { get; set; } = new();
     public LogicalExpressionOptions LogicalExpressions { get; set; } = new();
+    public CallChainOptions CallChain { get; set; } = new();
 }
