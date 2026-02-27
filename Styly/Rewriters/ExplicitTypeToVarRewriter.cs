@@ -48,6 +48,7 @@ internal class ExplicitTypeToVarRewriter : CSharpSyntaxRewriter
 
         // Check if 'var' is semantically valid here (e.g., not assigning null without cast)
         TypeInfo typeInfo = _semanticModel.GetTypeInfo(declaration.Type);
+
         ITypeSymbol? typeSymbol = typeInfo.Type;
 
         TypeInfo initializerTypeInfo = _semanticModel.GetTypeInfo(variable.Initializer.Value);

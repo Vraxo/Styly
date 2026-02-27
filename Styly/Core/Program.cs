@@ -16,6 +16,7 @@ public class Program
         rootCommand.SetHandler(HandleProjectFormatting);
         // Standalone 'format' command for single files
         Argument<FileInfo> fileArgument = new Argument<FileInfo>("file", "The C# file to format.").ExistingOnly();
+
         Option<NamespaceFormat> namespaceOption = new("--namespace-format", () => NamespaceFormat.File, "Namespace format override.");
         Command formatCommand = new("format", "Formats a single file without project context.");
         formatCommand.AddArgument(fileArgument);
@@ -29,6 +30,7 @@ public class Program
         rootCommand.AddCommand(formatCommand);
         // Path installation helper
         Command installPathCommand = new("install-path", "Adds the tool to the user's PATH.");
+
         installPathCommand.SetHandler(CliInstaller.InstallPath);
         rootCommand.AddCommand(installPathCommand);
 
@@ -72,6 +74,7 @@ public class Program
 
         // 2. Build the Semantic Workspace
         Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
+
         using AdhocWorkspace workspace = CreateSemanticWorkspace();
         Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
         // 3. Add files to the project

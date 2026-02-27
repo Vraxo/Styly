@@ -13,12 +13,14 @@ public static class CodeFormatter
     {
         // 1. Syntactic Cleaning (Layout)
         SyntaxNode root = await document.GetSyntaxRootAsync() ?? throw new InvalidOperationException();
+
         root = ApplyBasicCleaning(root);
         document = document.WithSyntaxRoot(root);
         // 2. Semantic Transformations (var, Any, usings)
         document = await ApplySemanticRewritersAsync(document, formatOptions);
         // 3. Final Layout Polish
         root = await document.GetSyntaxRootAsync() ?? throw new InvalidOperationException();
+
         root = ApplySyntacticRewriters(root, formatOptions);
 
         return document.WithSyntaxRoot(root);
@@ -27,6 +29,7 @@ public static class CodeFormatter
     public static async Task<string> ReformatScriptAsync(string sourceText, FormatOptions formatOptions)
     {
         using AdhocWorkspace workspace = new();
+
         IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Where(path => !string.IsNullOrEmpty(path) 
             && File.Exists(path)).Select(path => MetadataReference.CreateFromFile(path));
 
@@ -46,6 +49,7 @@ public static class CodeFormatter
     private static SyntaxNode ApplyBasicCleaning(SyntaxNode root)
     {
         root = new LayoutAnnotator().Visit(root);
+
         return root.NormalizeWhitespace(indentation: "    ", eol: """
 
 

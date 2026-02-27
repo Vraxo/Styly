@@ -124,6 +124,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             || t.IsKind(SyntaxKind.WhitespaceTrivia));
         // Force a single indentation level
         SyntaxTriviaList newTrivia = SyntaxFactory.TriviaList(SyntaxFactory.Whitespace("    "));
+
         newTrivia = newTrivia.AddRange(content);
 
         return node.ReplaceToken(firstToken, firstToken.WithLeadingTrivia(newTrivia));

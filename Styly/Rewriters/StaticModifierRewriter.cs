@@ -77,6 +77,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
         // 2. Check for implicit instance member access
         IEnumerable<IdentifierNameSyntax> identifiers = body.DescendantNodes().OfType<IdentifierNameSyntax>();
+
         ISymbol? methodSymbol = _semanticModel.GetDeclaredSymbol(method);
         INamedTypeSymbol? containingType = methodSymbol?.ContainingType;
 
@@ -244,9 +245,11 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
         {
             // We need to move the leading trivia (indentation/comments) from the first existing modifier to our new 'static' token.
             SyntaxToken firstMod = node.Modifiers[0];
+
             staticToken = staticToken.WithLeadingTrivia(firstMod.LeadingTrivia);
             // Strip the trivia from the old first modifier so it doesn't duplicate.
             SyntaxTokenList newModifiers = node.Modifiers.Replace(firstMod, firstMod.WithLeadingTrivia(SyntaxFactory.TriviaList()));
+
             return node.WithModifiers(newModifiers.Insert(0, staticToken));
         }
         else

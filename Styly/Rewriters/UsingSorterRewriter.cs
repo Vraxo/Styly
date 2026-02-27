@@ -71,6 +71,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
         // 2. Preserve File Header (Leading trivia of the *original* first item)
         // We attach it to the new first item.
         SyntaxTriviaList originalFirstTrivia = usings.First().GetLeadingTrivia();
+
         sortedList[0] = sortedList[0].WithLeadingTrivia(originalFirstTrivia);
         // 3. Normalize spacing for all items
         for (int i = 0; i < sortedList.Count; i++)

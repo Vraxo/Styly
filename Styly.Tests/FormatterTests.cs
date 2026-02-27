@@ -19,6 +19,7 @@ public abstract class FormatterTestBase
 
 
         """);
+
         string normalizedExpected = expected.Trim().Replace("""
 
 

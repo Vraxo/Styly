@@ -42,6 +42,7 @@ internal class IndentationAdder : CSharpSyntaxRewriter
                     // The next trivia is whitespace (existing indentation).
                     // We combine our indent with it.
                     SyntaxTrivia existingWhitespace = originalTrivia[i + 1];
+
                     string combinedIndent = existingWhitespace.ToString() + Indent;
 
                     newTrivia.Add(SyntaxFactory.Whitespace(combinedIndent));
