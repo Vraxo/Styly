@@ -23,12 +23,14 @@ internal class VarToExplicitTypeRewriter : CSharpSyntaxRewriter
 
         TypeInfo typeInfo = _semanticModel.GetTypeInfo(declaration.Type);
         ITypeSymbol? typeSymbol = typeInfo.ConvertedType;
-
         // Skip rewriting if:
         // 1. Type symbol is not resolved (null or Error).
         // 2. Type is void (cannot be a variable type).
         // 3. Type is Anonymous (e.g. new { A = 1 }), as it has no explicit type name.
-        if (typeSymbol == null || typeSymbol.TypeKind == TypeKind.Error || typeSymbol.SpecialType == SpecialType.System_Void || typeSymbol.IsAnonymousType)
+        if (typeSymbol is null 
+            || typeSymbol.TypeKind == TypeKind.Error 
+            || typeSymbol.SpecialType == SpecialType.System_Void 
+            || typeSymbol.IsAnonymousType)
         {
             return base.VisitLocalDeclarationStatement(node);
         }

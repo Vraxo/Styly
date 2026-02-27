@@ -11,24 +11,24 @@ public class NamespaceTests : FormatterTestBase
     {
         string input = """
 
-            namespace MySpace
-            {
-                public class MyClass
+                namespace MySpace
                 {
-                    public void M() { }
+                    public class MyClass
+                    {
+                        public void M() { }
+                    }
                 }
-            }
         """;
         string expected = """
 
-            namespace MySpace;
+                namespace MySpace;
 
-            public class MyClass
-            {
-                public void M()
+                public class MyClass
                 {
+                    public void M()
+                    {
+                    }
                 }
-            }
 
         """;
 
@@ -45,21 +45,21 @@ public class NamespaceTests : FormatterTestBase
     {
         string input = """
 
-            namespace MySpace;
+                namespace MySpace;
 
-            public class MyClass
-            {
-            }
+                public class MyClass
+                {
+                }
 
         """;
         string expected = """
 
-            namespace MySpace
-            {
-                public class MyClass
+                namespace MySpace
                 {
+                    public class MyClass
+                    {
+                    }
                 }
-            }
 
         """;
 

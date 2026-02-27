@@ -16,7 +16,8 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        if (_format == NamespaceFormat.File && node.Parent is CompilationUnitSyntax)
+        if (_format == NamespaceFormat.File 
+            && node.Parent is CompilationUnitSyntax)
         {
             IndentationRemover indentationRemover = new();
             SyntaxList<MemberDeclarationSyntax> unindentedMembers = [];
@@ -29,7 +30,6 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             FileScopedNamespaceDeclarationSyntax fileScopedNamespace = SyntaxFactory.FileScopedNamespaceDeclaration(node.AttributeLists, node.Modifiers, node.Name.WithoutTrailingTrivia(), node.Externs, node.Usings, unindentedMembers).WithLeadingTrivia(node.GetLeadingTrivia());
 
             fileScopedNamespace = fileScopedNamespace.WithNamespaceKeyword(node.NamespaceKeyword.WithTrailingTrivia(SyntaxFactory.Space));
-
             // Add a blank line after the semicolon to separate it from the first member.
             SyntaxToken semicolon = SyntaxFactory.Token(SyntaxKind.SemicolonToken).WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed, SyntaxFactory.CarriageReturnLineFeed);
 
@@ -42,7 +42,8 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             {
                 SyntaxTrivia trivia = trailingTrivia[i];
 
-                if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia) && !trivia.IsKind(SyntaxKind.EndOfLineTrivia))
+                if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia) 
+                    && !trivia.IsKind(SyntaxKind.EndOfLineTrivia))
                 {
                     lastNonWhitespaceIndex = i;
                     break;
@@ -64,7 +65,6 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             SyntaxList<UsingDirectiveSyntax> indentedUsings = [];
             SyntaxList<MemberDeclarationSyntax> indentedMembers = [];
             bool isFirstItemProcessed = false;
-
             // Process Usings
             foreach (UsingDirectiveSyntax u in node.Usings)
             {
@@ -88,7 +88,8 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             {
                 MemberDeclarationSyntax rewritten = (MemberDeclarationSyntax)indentationAdder.Visit(m);
 
-                if (!isFirstItemProcessed && !indentedUsings.Any())
+                if (!isFirstItemProcessed 
+                    && !indentedUsings.Any())
                 {
                     rewritten = FixFirstItemIndentation(rewritten);
                     isFirstItemProcessed = true;
@@ -104,7 +105,6 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             NamespaceDeclarationSyntax blockScopedNamespace = SyntaxFactory.NamespaceDeclaration(node.AttributeLists, node.Modifiers, node.Name, node.Externs, indentedUsings, indentedMembers).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
 
             blockScopedNamespace = blockScopedNamespace.WithNamespaceKeyword(blockScopedNamespace.NamespaceKeyword.WithTrailingTrivia(SyntaxFactory.Space));
-
             // Ensure braces are properly formatted with newlines
             blockScopedNamespace = blockScopedNamespace.WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken).WithLeadingTrivia(SyntaxFactory.CarriageReturnLineFeed).WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed)).WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken).WithLeadingTrivia(SyntaxFactory.CarriageReturnLineFeed));
 
@@ -119,10 +119,9 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
     {
         SyntaxToken firstToken = node.GetFirstToken();
         SyntaxTriviaList leading = firstToken.LeadingTrivia;
-
         // Strip all initial newlines and whitespace to ensure the item sits flush after the brace's newline.
-        IEnumerable<SyntaxTrivia> content = leading.SkipWhile(t => t.IsKind(SyntaxKind.EndOfLineTrivia) || t.IsKind(SyntaxKind.WhitespaceTrivia));
-
+        IEnumerable<SyntaxTrivia> content = leading.SkipWhile(t => t.IsKind(SyntaxKind.EndOfLineTrivia) 
+            || t.IsKind(SyntaxKind.WhitespaceTrivia));
         // Force a single indentation level
         SyntaxTriviaList newTrivia = SyntaxFactory.TriviaList(SyntaxFactory.Whitespace("    "));
         newTrivia = newTrivia.AddRange(content);
@@ -134,7 +133,6 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
         where T : SyntaxNode
     {
         SyntaxToken firstToken = node.GetFirstToken();
-
         // If the token doesn't start with a newline, IndentationAdder wouldn't have added indentation.
         // We explicitly add it here to ensure alignment within the block.
         if (!firstToken.LeadingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)))

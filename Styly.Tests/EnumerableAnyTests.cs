@@ -10,35 +10,34 @@ public class EnumerableAnyTests : FormatterTestBase
     {
         string input = """
 
-            using System.Collections.Generic;
-            using System.Linq;
+                using System.Collections.Generic;
+                using System.Linq;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    List<int> list = new List<int>();
-                    if (list.Any()) { }
+                    void M()
+                    {
+                        List<int> list = new List<int>();
+                        if (list.Any()) { }
+                    }
                 }
-            }
         """;
-
         // Expect formatting (braces/newlines) + optimization (Count != 0)
         string expected = """
 
-            using System.Collections.Generic;
-            using System.Linq;
+                using System.Collections.Generic;
+                using System.Linq;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    List<int> list = new List<int>();
-                    if (list.Count != 0)
+                    void M()
                     {
+                        List<int> list = new List<int>();
+                        if (list.Count != 0)
+                        {
+                        }
                     }
                 }
-            }
         """;
         AssertFormatting(input, expected, new FormatOptions());
     }
@@ -48,31 +47,31 @@ public class EnumerableAnyTests : FormatterTestBase
     {
         string input = """
 
-            using System.Linq;
+                using System.Linq;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    int[] arr = new int[0];
-                    if (arr.Any()) { }
+                    void M()
+                    {
+                        int[] arr = new int[0];
+                        if (arr.Any()) { }
+                    }
                 }
-            }
         """;
         string expected = """
 
-            using System.Linq;
+                using System.Linq;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    int[] arr = new int[0];
-                    if (arr.Length != 0)
+                    void M()
                     {
+                        int[] arr = new int[0];
+                        if (arr.Length != 0)
+                        {
+                        }
                     }
                 }
-            }
         """;
         AssertFormatting(input, expected, new FormatOptions());
     }
@@ -83,31 +82,31 @@ public class EnumerableAnyTests : FormatterTestBase
         // IEnumerable<T> does not have Count/Length, so Any() must stay.
         string input = """
 
-            using System.Collections.Generic;
-            using System.Linq;
+                using System.Collections.Generic;
+                using System.Linq;
 
-            class C
-            {
-                void M(IEnumerable<int> seq)
+                class C
                 {
-                    if (seq.Any()) { }
+                    void M(IEnumerable<int> seq)
+                    {
+                        if (seq.Any()) { }
+                    }
                 }
-            }
         """;
         string expected = """
 
-            using System.Collections.Generic;
-            using System.Linq;
+                using System.Collections.Generic;
+                using System.Linq;
 
-            class C
-            {
-                void M(IEnumerable<int> seq)
+                class C
                 {
-                    if (seq.Any())
+                    void M(IEnumerable<int> seq)
                     {
+                        if (seq.Any())
+                        {
+                        }
                     }
                 }
-            }
         """;
         AssertFormatting(input, expected, new FormatOptions());
     }
@@ -118,33 +117,33 @@ public class EnumerableAnyTests : FormatterTestBase
         // Any(predicate) cannot be simply converted to Count != 0.
         string input = """
 
-            using System.Collections.Generic;
-            using System.Linq;
+                using System.Collections.Generic;
+                using System.Linq;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    List<int> list = new List<int>();
-                    if (list.Any(x => x > 5)) { }
+                    void M()
+                    {
+                        List<int> list = new List<int>();
+                        if (list.Any(x => x > 5)) { }
+                    }
                 }
-            }
         """;
         string expected = """
 
-            using System.Collections.Generic;
-            using System.Linq;
+                using System.Collections.Generic;
+                using System.Linq;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    List<int> list = new List<int>();
-                    if (list.Any(x => x > 5))
+                    void M()
                     {
+                        List<int> list = new List<int>();
+                        if (list.Any(x => x > 5))
+                        {
+                        }
                     }
                 }
-            }
         """;
         AssertFormatting(input, expected, new FormatOptions());
     }
@@ -156,32 +155,32 @@ public class EnumerableAnyTests : FormatterTestBase
         // If Any() is the only Linq usage, System.Linq should be removed.
         string input = """
 
-            using System.Collections.Generic;
-            using System.Linq;
+                using System.Collections.Generic;
+                using System.Linq;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    List<int> list = new List<int>();
-                    if (list.Any()) { }
+                    void M()
+                    {
+                        List<int> list = new List<int>();
+                        if (list.Any()) { }
+                    }
                 }
-            }
         """;
         string expected = """
 
-            using System.Collections.Generic;
+                using System.Collections.Generic;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    List<int> list = new List<int>();
-                    if (list.Count != 0)
+                    void M()
                     {
+                        List<int> list = new List<int>();
+                        if (list.Count != 0)
+                        {
+                        }
                     }
                 }
-            }
         """;
 
         FormatOptions options = new()
@@ -201,32 +200,32 @@ public class EnumerableAnyTests : FormatterTestBase
         // Explicit regression test: checks that " != " has spaces around it.
         string input = """
 
-            using System.Collections.Generic;
-            using System.Linq;
+                using System.Collections.Generic;
+                using System.Linq;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    List<int> list = [];
-                    if(list.Any()){}
+                    void M()
+                    {
+                        List<int> list = [];
+                        if(list.Any()){}
+                    }
                 }
-            }
         """;
         string expected = """
 
-            using System.Collections.Generic;
+                using System.Collections.Generic;
 
-            class C
-            {
-                void M()
+                class C
                 {
-                    List<int> list = [];
-                    if (list.Count != 0)
+                    void M()
                     {
+                        List<int> list = [];
+                        if (list.Count != 0)
+                        {
+                        }
                     }
                 }
-            }
         """;
 
         FormatOptions options = new()

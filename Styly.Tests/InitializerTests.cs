@@ -11,16 +11,16 @@ public class InitializerTests : FormatterTestBase
     {
         string input = """
 
-            var o = new Obj { A = 1, B = 2 };
+                var o = new Obj { A = 1, B = 2 };
         """;
 
         string expected = """
 
-            var o = new Obj
-            {
-                A = 1,
-                B = 2
-            };
+                var o = new Obj
+                {
+                    A = 1,
+                    B = 2
+                };
         """;
 
         FormatOptions options = new();
@@ -34,16 +34,16 @@ public class InitializerTests : FormatterTestBase
     {
         string input = """
 
-            var o = new Obj
-            {
-                A = 1,
-                B = 2
-            };
+                var o = new Obj
+                {
+                    A = 1,
+                    B = 2
+                };
         """;
 
         string expected = """
 
-            var o = new Obj { A = 1, B = 2 };
+                var o = new Obj { A = 1, B = 2 };
         """;
 
         FormatOptions options = new();
@@ -59,11 +59,11 @@ public class InitializerTests : FormatterTestBase
         string input = "var a = new { X = 1, Y = 2 };";
         string expected = """
 
-            var a = new
-            {
-                X = 1,
-                Y = 2
-            };
+                var a = new
+                {
+                    X = 1,
+                    Y = 2
+                };
         """;
         FormatOptions options = new();
         options.Initializers.AnonymousType = InitializerStyle.MultiLine;
@@ -77,12 +77,12 @@ public class InitializerTests : FormatterTestBase
         string input = "var l = new List<int> { 1, 2, 3 };";
         string expected = """
 
-            var l = new List<int>
-            {
-                1,
-                2,
-                3
-            };
+                var l = new List<int>
+                {
+                    1,
+                    2,
+                    3
+                };
         """;
         FormatOptions options = new();
         options.Initializers.Collection = InitializerStyle.MultiLine;
@@ -97,11 +97,11 @@ public class InitializerTests : FormatterTestBase
         string input = "var x = [1, 2];";
         string expected = """
 
-            var x =
-            [
-                1,
-                2
-            ];
+                var x =
+                [
+                    1,
+                    2
+                ];
         """;
         FormatOptions options = new();
         options.Initializers.Collection = InitializerStyle.MultiLine;
@@ -114,12 +114,12 @@ public class InitializerTests : FormatterTestBase
         // Comments should prevent reformatting to avoid breaking layout
         string input = """
 
-            var o = new Obj { /* comment */ A = 1 };
+                var o = new Obj { /* comment */ A = 1 };
         """;
 
         string expected = """
 
-            var o = new Obj { /* comment */ A = 1 };
+                var o = new Obj { /* comment */ A = 1 };
         """;
 
         FormatOptions options = new();

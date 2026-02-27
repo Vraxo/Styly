@@ -72,12 +72,10 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
         // We attach it to the new first item.
         SyntaxTriviaList originalFirstTrivia = usings.First().GetLeadingTrivia();
         sortedList[0] = sortedList[0].WithLeadingTrivia(originalFirstTrivia);
-
         // 3. Normalize spacing for all items
         for (int i = 0; i < sortedList.Count; i++)
         {
             UsingDirectiveSyntax current = sortedList[i];
-
             // A. Strip Leading Newlines (for items 1..N)
             // This prevents gaps if the previous item already has a trailing newline.
             // The first item (0) keeps its header (assigned above).
@@ -111,14 +109,14 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
     private static UsingDirectiveSyntax SetTrailingNewlines(UsingDirectiveSyntax node, int count)
     {
         SyntaxTriviaList trailing = node.GetTrailingTrivia();
-
         // Find the last significant trivia (comment or non-whitespace/newline).
         // We want to keep comments, but strip existing whitespace/newlines at the end.
         int lastIndexToKeep = -1;
 
         for (int i = trailing.Count - 1; i >= 0; i--)
         {
-            if (!trailing[i].IsKind(SyntaxKind.WhitespaceTrivia) && !trailing[i].IsKind(SyntaxKind.EndOfLineTrivia))
+            if (!trailing[i].IsKind(SyntaxKind.WhitespaceTrivia) 
+                && !trailing[i].IsKind(SyntaxKind.EndOfLineTrivia))
             {
                 lastIndexToKeep = i;
                 break;

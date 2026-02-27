@@ -29,7 +29,6 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
         {
             T prev = items[i - 1];
             T curr = items[i];
-
             // Check if there was originally a blank line between these nodes.
             // We check the trivia between them (Trailing of prev + Leading of curr).
             if (HasBlankLineBetween(prev, curr))
@@ -46,7 +45,6 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
     private static bool HasBlankLineBetween(SyntaxNode prev, SyntaxNode curr)
     {
         int newlines = CountEndingNewlines(prev.GetTrailingTrivia()) + CountStartingNewlines(curr.GetLeadingTrivia());
-
         // 2 newlines usually means one empty line in between.
         return newlines >= 2;
     }

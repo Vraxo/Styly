@@ -14,9 +14,16 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
-        return node.Body == null && node.ExpressionBody == null
+        return node.Body is null 
+            && node.ExpressionBody is null
             ? base.VisitMethodDeclaration(node)
-            : node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword) || m.IsKind(SyntaxKind.AbstractKeyword) || m.IsKind(SyntaxKind.VirtualKeyword) || m.IsKind(SyntaxKind.OverrideKeyword) || m.IsKind(SyntaxKind.NewKeyword) || m.IsKind(SyntaxKind.PartialKeyword)) ? base.VisitMethodDeclaration(node) : node.ExplicitInterfaceSpecifier != null ? base.VisitMethodDeclaration(node) : AccessesInstanceData(node) || IsInterfaceImplementation(node) ? base.VisitMethodDeclaration(node) : MakeStatic(node);
+            : node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword) 
+            || m.IsKind(SyntaxKind.AbstractKeyword) 
+            || m.IsKind(SyntaxKind.VirtualKeyword) 
+            || m.IsKind(SyntaxKind.OverrideKeyword) 
+            || m.IsKind(SyntaxKind.NewKeyword) 
+            || m.IsKind(SyntaxKind.PartialKeyword)) ? base.VisitMethodDeclaration(node) : node.ExplicitInterfaceSpecifier is not null ? base.VisitMethodDeclaration(node) : AccessesInstanceData(node) 
+            || IsInterfaceImplementation(node) ? base.VisitMethodDeclaration(node) : MakeStatic(node);
     }
 
     private bool IsInterfaceImplementation(MethodDeclarationSyntax node)
@@ -31,7 +38,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
         INamedTypeSymbol type = methodSymbol.ContainingType;
 
-        if (type == null)
+        if (type is null)
         {
             return true;
         }
@@ -46,7 +53,6 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
                 {
                     // Ask Roslyn: "Which method in 'type' implements this 'interfaceMethod'?"
                     ISymbol? implementation = type.FindImplementationForInterfaceMember(interfaceMethod);
-
                     // If the answer is "this method", then we cannot make it static.
                     if (SymbolEqualityComparer.Default.Equals(implementation, methodSymbol))
                     {
@@ -62,9 +68,9 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
     private bool AccessesInstanceData(MethodDeclarationSyntax method)
     {
         SyntaxNode body = (SyntaxNode? )method.Body ?? method.ExpressionBody!;
-
         // 1. Check for 'this' or 'base' keywords
-        if (body.DescendantTokens().Any(t => t.IsKind(SyntaxKind.ThisKeyword) || t.IsKind(SyntaxKind.BaseKeyword)))
+        if (body.DescendantTokens().Any(t => t.IsKind(SyntaxKind.ThisKeyword) 
+            || t.IsKind(SyntaxKind.BaseKeyword)))
         {
             return true;
         }
@@ -74,7 +80,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
         ISymbol? methodSymbol = _semanticModel.GetDeclaredSymbol(method);
         INamedTypeSymbol? containingType = methodSymbol?.ContainingType;
 
-        if (containingType == null)
+        if (containingType is null)
         {
             // If we can't determine the containing type, assume it's unsafe to change.
             return true;
@@ -105,7 +111,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
             SymbolInfo symbolInfo = _semanticModel.GetSymbolInfo(identifier);
             ISymbol? symbol = symbolInfo.Symbol;
 
-            if (symbol == null)
+            if (symbol is null)
             {
                 // CRITICAL SAFETY CHECK:
                 // If we cannot resolve the symbol, we MUST assume it might be an instance member.
@@ -135,15 +141,18 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
         // Traverse up to find if we are inside a nameof(...) expression
         SyntaxNode? current = node.Parent;
 
-        while (current != null)
+        while (current is not null)
         {
-            if (current is InvocationExpressionSyntax invocation && invocation.Expression is IdentifierNameSyntax name && name.Identifier.ValueText == "nameof")
+            if (current is InvocationExpressionSyntax invocation 
+                && invocation.Expression is IdentifierNameSyntax name 
+                && name.Identifier.ValueText == "nameof")
             {
                 return true;
             }
 
             // Stop at statement boundaries to avoid deep walks
-            if (current is StatementSyntax or MemberDeclarationSyntax)
+            if (current is StatementSyntax 
+                or MemberDeclarationSyntax)
             {
                 break;
             }
@@ -157,14 +166,16 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
     private static bool IsMemberAccessOnOtherInstance(IdentifierNameSyntax identifier)
     {
         // Check if this identifier is the 'Name' part of a MemberAccessExpression (e.g. "other.Name")
-        if (identifier.Parent is not MemberAccessExpressionSyntax memberAccess || memberAccess.Name != identifier)
+        if (identifier.Parent is not MemberAccessExpressionSyntax memberAccess 
+            || memberAccess.Name != identifier)
         {
             return false;
         }
 
         // If the expression on the left (Expression) is NOT 'this' or 'base' (explicitly or implicitly),
         // then it's access on a different object.
-        if (memberAccess.Expression is not ThisExpressionSyntax and not BaseExpressionSyntax)
+        if (memberAccess.Expression is not ThisExpressionSyntax 
+            and not BaseExpressionSyntax)
         {
             // It's something like "obj.Prop". 
             // CAUTION: If "obj" itself resolves to an instance field of 'this', checking "obj" in the loop
@@ -177,7 +188,10 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
     private static bool IsInstanceMember(ISymbol symbol, INamedTypeSymbol containingType)
     {
-        if (symbol.Kind is not (SymbolKind.Field or SymbolKind.Property or SymbolKind.Method or SymbolKind.Event))
+        if (symbol.Kind is not (SymbolKind.Field 
+            or SymbolKind.Property 
+            or SymbolKind.Method 
+            or SymbolKind.Event))
         {
             return false;
         }
@@ -185,7 +199,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
         // Check if the symbol belongs to the containing type or its base types
         ITypeSymbol? current = containingType;
 
-        while (current != null)
+        while (current is not null)
         {
             // Use OriginalDefinition to handle generic types correctly
             if (SymbolEqualityComparer.Default.Equals(current.OriginalDefinition, symbol.ContainingType?.OriginalDefinition))
@@ -209,7 +223,10 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
         {
             SyntaxKind kind = node.Modifiers[i].Kind();
 
-            if (kind is SyntaxKind.PublicKeyword or SyntaxKind.PrivateKeyword or SyntaxKind.ProtectedKeyword or SyntaxKind.InternalKeyword)
+            if (kind is SyntaxKind.PublicKeyword 
+                or SyntaxKind.PrivateKeyword 
+                or SyntaxKind.ProtectedKeyword 
+                or SyntaxKind.InternalKeyword)
             {
                 insertIndex = i;
             }
@@ -228,7 +245,6 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
             // We need to move the leading trivia (indentation/comments) from the first existing modifier to our new 'static' token.
             SyntaxToken firstMod = node.Modifiers[0];
             staticToken = staticToken.WithLeadingTrivia(firstMod.LeadingTrivia);
-
             // Strip the trivia from the old first modifier so it doesn't duplicate.
             SyntaxTokenList newModifiers = node.Modifiers.Replace(firstMod, firstMod.WithLeadingTrivia(SyntaxFactory.TriviaList()));
             return node.WithModifiers(newModifiers.Insert(0, staticToken));
@@ -238,7 +254,6 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
             // No existing modifiers. The leading trivia is currently attached to the ReturnType.
             // We move it to 'static'.
             staticToken = staticToken.WithLeadingTrivia(node.ReturnType.GetLeadingTrivia());
-
             // Strip trivia from ReturnType.
             MethodDeclarationSyntax newNode = node.WithReturnType(node.ReturnType.WithLeadingTrivia(SyntaxFactory.TriviaList()));
 

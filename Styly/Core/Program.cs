@@ -14,7 +14,6 @@ public class Program
         RootCommand rootCommand = new("A .NET code formatter. Automatically finds .styly.yaml and processes C# files.");
 
         rootCommand.SetHandler(HandleProjectFormatting);
-
         // Standalone 'format' command for single files
         Argument<FileInfo> fileArgument = new Argument<FileInfo>("file", "The C# file to format.").ExistingOnly();
         Option<NamespaceFormat> namespaceOption = new("--namespace-format", () => NamespaceFormat.File, "Namespace format override.");
@@ -28,7 +27,6 @@ public class Program
         }), fileArgument, namespaceOption);
 
         rootCommand.AddCommand(formatCommand);
-
         // Path installation helper
         Command installPathCommand = new("install-path", "Adds the tool to the user's PATH.");
         installPathCommand.SetHandler(CliInstaller.InstallPath);
@@ -42,7 +40,7 @@ public class Program
         string currentDir = Directory.GetCurrentDirectory();
         string? configPath = FindConfigFile(currentDir);
 
-        if (configPath == null)
+        if (configPath is null)
         {
             WriteError("Error: Configuration file '.styly.yaml' not found.");
             return;
@@ -50,7 +48,6 @@ public class Program
 
         StylyConfig config = LoadConfig(configPath);
         string baseDir = Path.GetDirectoryName(configPath)!;
-
         // 1. Find all matching files
         Matcher matcher = new();
 
@@ -77,7 +74,6 @@ public class Program
         Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
         using AdhocWorkspace workspace = CreateSemanticWorkspace();
         Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
-
         // 3. Add files to the project
         Dictionary<DocumentId, string> documentIds = new();
 
@@ -96,7 +92,6 @@ public class Program
         {
             Document doc = project.GetDocument(entry.Key)!;
             await ProcessDocument(doc, config.Format, entry.Value);
-
             // Refresh project state to maintain semantic accuracy across rewrites
             project = doc.Project.Solution.GetProject(project.Id)!;
         }
@@ -107,9 +102,9 @@ public class Program
     private static AdhocWorkspace CreateSemanticWorkspace()
     {
         AdhocWorkspace workspace = new();
-
         // Feed the workspace the same DLLs this tool is running on (.NET 10 Core)
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Where(path => !string.IsNullOrEmpty(path) && File.Exists(path)).Select(path => MetadataReference.CreateFromFile(path));
+        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Where(path => !string.IsNullOrEmpty(path) 
+            && File.Exists(path)).Select(path => MetadataReference.CreateFromFile(path));
 
         _ = workspace.AddProject("StylyContext", LanguageNames.CSharp).WithMetadataReferences(references);
 
@@ -169,7 +164,7 @@ public class Program
     {
         DirectoryInfo? current = new(dir);
 
-        while (current != null)
+        while (current is not null)
         {
             string p1 = Path.Combine(current.FullName, ".styly.yaml");
 

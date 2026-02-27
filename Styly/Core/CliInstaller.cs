@@ -40,7 +40,7 @@ public static class CliInstaller
 
             WriteSuccess("""
 
-                Successfully added the application directory to your user PATH.
+                    Successfully added the application directory to your user PATH.
             """);
             WriteSuccess("Please restart your terminal session for the changes to take effect.");
         }

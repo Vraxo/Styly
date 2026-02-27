@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Styly.Configuration;
@@ -8,7 +8,6 @@ namespace Styly.Rewriters;
 internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 {
     private readonly SpacingOptions _options;
-
     public VerticalRhythmRewriter(SpacingOptions options)
     {
         _options = options;
@@ -16,7 +15,10 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)
     {
-        SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(node.Members, m => m is GlobalStatementSyntax g ? g.Statement : null);
+        SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(node.Members, m => m is GlobalStatementSyntax g
+            ? g.Statement
+            : null);
+
         return base.VisitCompilationUnit(node.WithMembers(newMembers));
     }
 
@@ -62,11 +64,14 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
             StatementSyntax? prevStmt = getStatement(prev);
             StatementSyntax? currStmt = getStatement(curr);
 
-            bool shouldGap =
-                (_options.EmptyLineBeforeControlFlow && IsControlFlow(currStmt)) ||
-                (_options.EmptyLineAfterControlFlow && IsControlFlow(prevStmt)) ||
-                (_options.EmptyLineAroundMultiLineExpression && (IsMultiLine(prevStmt) || IsMultiLine(currStmt))) ||
-                curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
+            bool shouldGap = (_options.EmptyLineBeforeControlFlow 
+                && IsControlFlow(currStmt)) 
+                || (_options.EmptyLineAfterControlFlow 
+                && IsControlFlow(prevStmt)) 
+                || (_options.EmptyLineAroundMultiLineExpression 
+                && (IsMultiLine(prevStmt) 
+                || IsMultiLine(currStmt))) 
+                || curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
 
             if (shouldGap)
             {
@@ -81,17 +86,23 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 
     private static bool IsControlFlow(StatementSyntax? s)
     {
-        return s is
-        IfStatementSyntax or SwitchStatementSyntax or WhileStatementSyntax or
-        DoStatementSyntax or ForStatementSyntax or ForEachStatementSyntax or
-        TryStatementSyntax or LocalFunctionStatementSyntax;
+        return s is IfStatementSyntax 
+            or SwitchStatementSyntax 
+            or WhileStatementSyntax 
+            or DoStatementSyntax 
+            or ForStatementSyntax 
+            or ForEachStatementSyntax 
+            or TryStatementSyntax 
+            or LocalFunctionStatementSyntax;
     }
 
     private static bool IsMultiLine(StatementSyntax? s)
     {
-        return s != null && s.DescendantNodes().Any(n =>
-            (n is InitializerExpressionSyntax or CollectionExpressionSyntax or
-             AnonymousObjectCreationExpressionSyntax or ConditionalExpressionSyntax) &&
-            n.DescendantTrivia().Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)));
+        return s is not null 
+            && s.DescendantNodes().Any(n => (n is InitializerExpressionSyntax 
+            or CollectionExpressionSyntax 
+            or AnonymousObjectCreationExpressionSyntax 
+            or ConditionalExpressionSyntax) 
+            && n.DescendantTrivia().Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)));
     }
 }

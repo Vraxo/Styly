@@ -17,7 +17,8 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
         TypeInfo typeInfo = _semanticModel.GetTypeInfo(node);
         ITypeSymbol? type = typeInfo.ConvertedType;
 
-        if (type == null || type.TypeKind == TypeKind.Error)
+        if (type is null 
+            || type.TypeKind == TypeKind.Error)
         {
             return false;
         }
@@ -35,14 +36,16 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
         }
 
         // Check if it's a generic collection.
-        return type.AllInterfaces.Any(i => i.IsGenericType && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
+        return type.AllInterfaces.Any(i => i.IsGenericType 
+            && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
     }
 
     private static CollectionExpressionSyntax? CreateCollectionExpression(InitializerExpressionSyntax? initializer, SyntaxNode originalNode)
     {
         CollectionExpressionSyntax newExpression;
 
-        if (initializer == null || initializer.Expressions.Count == 0)
+        if (initializer is null 
+            || initializer.Expressions.Count == 0)
         {
             // Empty collection: []
             newExpression = SyntaxFactory.CollectionExpression();
@@ -53,10 +56,8 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
             // This is crucial for removing the unwanted space from the last element.
             // We also strip leading trivia to remove excessive indentation added by NormalizeWhitespace.
             IEnumerable<ExpressionElementSyntax> cleanElements = initializer.Expressions.Select(expr => SyntaxFactory.ExpressionElement(expr.WithoutLeadingTrivia().WithoutTrailingTrivia()));
-
             // Create new comma separators, each with a standard trailing space for correct formatting like `1, 2, 3`.
             IEnumerable<SyntaxToken> separators = Enumerable.Range(0, initializer.Expressions.Count - 1).Select(_ => SyntaxFactory.Token(SyntaxKind.CommaToken).WithTrailingTrivia(SyntaxFactory.Space));
-
             // Explicitly create a SeparatedSyntaxList of the base type `CollectionElementSyntax`.
             // This works because IEnumerable<T> is covariant, allowing our IEnumerable<ExpressionElementSyntax> to be used.
             SeparatedSyntaxList<CollectionElementSyntax> separatedList = SyntaxFactory.SeparatedList<CollectionElementSyntax>(cleanElements, separators);
@@ -70,7 +71,8 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitObjectCreationExpression(ObjectCreationExpressionSyntax node)
     {
         // Must have an initializer `{ ... }` or be parameterless `()`
-        if (node.ArgumentList != null && node.ArgumentList.Arguments.Any())
+        if (node.ArgumentList is not null 
+            && node.ArgumentList.Arguments.Any())
         {
             return base.VisitObjectCreationExpression(node);
         }
@@ -87,12 +89,15 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitArrayCreationExpression(ArrayCreationExpressionSyntax node)
     {
         // Handle `new int[0]`.
-        if (node.Initializer != null)
+        if (node.Initializer is not null)
         {
             return CreateCollectionExpression(node.Initializer, node);
         }
 
-        if (node.Type.RankSpecifiers.Count != 1 || node.Type.RankSpecifiers[0].Sizes.Count != 1 || node.Type.RankSpecifiers[0].Sizes[0] is not LiteralExpressionSyntax literal || literal.Token.ValueText != "0")
+        if (node.Type.RankSpecifiers.Count != 1 
+            || node.Type.RankSpecifiers[0].Sizes.Count != 1 
+            || node.Type.RankSpecifiers[0].Sizes[0] is not LiteralExpressionSyntax literal 
+            || literal.Token.ValueText != "0")
         {
             // Cannot convert things like `new int[5]` which are not initializers
             return base.VisitArrayCreationExpression(node);

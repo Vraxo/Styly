@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -22,7 +22,8 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
     {
         node = EnsureUsingSeparator(node, node.Usings, node.Members, (n, m) => n.WithMembers(m));
 
-        if (!node.Usings.Any() && node.Members.Any())
+        if (!node.Usings.Any() 
+            && node.Members.Any())
         {
             MemberDeclarationSyntax firstMember = node.Members[0];
             var newFirstMember = SpacingUtility.EnsureBlankLine(node.SemicolonToken, firstMember);
@@ -39,7 +40,8 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
     private static TNode EnsureUsingSeparator<TNode>(TNode node, SyntaxList<UsingDirectiveSyntax> usings, SyntaxList<MemberDeclarationSyntax> members, Func<TNode, SyntaxList<MemberDeclarationSyntax>, TNode> withMembers)
         where TNode : SyntaxNode
     {
-        if (!usings.Any() || !members.Any())
+        if (!usings.Any() 
+            || !members.Any())
         {
             return node;
         }
@@ -48,6 +50,8 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
         MemberDeclarationSyntax firstMember = members.First();
         var newFirstMember = SpacingUtility.EnsureBlankLine(lastUsing, firstMember);
 
-        return newFirstMember != firstMember ? withMembers(node, members.Replace(firstMember, newFirstMember)) : node;
+        return newFirstMember != firstMember
+            ? withMembers(node, members.Replace(firstMember, newFirstMember))
+            : node;
     }
 }

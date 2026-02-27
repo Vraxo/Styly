@@ -11,7 +11,6 @@ public abstract class FormatterTestBase
         // CodeFormatter.Reformat now internally uses ReformatScriptAsync (AdhocWorkspace),
         // which mimics the standalone behavior suitable for snippets.
         string result = CodeFormatter.Reformat(input.Trim(), options);
-
         // Normalize line endings for cross-platform assertion
         string normalizedResult = result.Trim().Replace("""
 

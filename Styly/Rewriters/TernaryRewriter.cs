@@ -26,13 +26,10 @@ internal class TernaryRewriter : CSharpSyntaxRewriter
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
         SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
         SyntaxTrivia newline = SyntaxFactory.CarriageReturnLineFeed;
-
         // Ensure the condition doesn't have trailing spaces
         ExpressionSyntax condition = node.Condition.WithoutTrailingTrivia();
-
         // Question mark on new line with indent
         SyntaxToken questionToken = SyntaxFactory.Token(SyntaxKind.QuestionToken).WithLeadingTrivia(SyntaxFactory.TriviaList(newline).AddRange(itemIndent)).WithTrailingTrivia(SyntaxFactory.Space);
-
         // Result branches cleaned up
         ExpressionSyntax whenTrue = node.WhenTrue.WithoutLeadingTrivia().WithoutTrailingTrivia();
 
@@ -50,9 +47,10 @@ internal class TernaryRewriter : CSharpSyntaxRewriter
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
+            or MemberDeclarationSyntax);
 
-        if (container != null)
+        if (container is not null)
         {
             SyntaxTriviaList leading = container.GetLeadingTrivia();
             SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));

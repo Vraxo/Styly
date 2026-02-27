@@ -18,15 +18,16 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitLiteralExpression(LiteralExpressionSyntax node)
     {
-        if (!_options.PreferRawForMultiline || !node.IsKind(SyntaxKind.StringLiteralExpression))
+        if (!_options.PreferRawForMultiline 
+            || !node.IsKind(SyntaxKind.StringLiteralExpression))
         {
             return base.VisitLiteralExpression(node);
         }
 
         string value = node.Token.ValueText;
-
         // "Truly Multiline" check: must contain a newline
-        return !value.Contains('\n') && !value.Contains('\r')
+        return !value.Contains('\n') 
+            && !value.Contains('\r')
             ? base.VisitLiteralExpression(node)
             : ConvertToRawString(node, value);
     }
@@ -37,12 +38,10 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
         int maxSequentialQuotes = GetMaxSequentialQuotes(value);
         int quotesNeeded = Math.Max(3, maxSequentialQuotes + 1);
         string delimiter = new('"', quotesNeeded);
-
         // 2. Get indentation
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
         string indentStr = parentIndent.ToString();
         string contentIndent = indentStr + new string (' ', IndentSize);
-
         // 3. Format lines
         string[] lines = MyRegex().Split(value);
         StringBuilder sb = new();
@@ -63,7 +62,6 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
         _ = sb.Append(indentStr);
         _ = sb.Append(delimiter);
-
         // 4. Create the new token
         // We use ParseToken because constructing a RawStringLiteralToken manually is complex 
         // and requires internal Roslyn bits or very specific factory calls.
@@ -95,9 +93,10 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
+            or MemberDeclarationSyntax);
 
-        if (container != null)
+        if (container is not null)
         {
             SyntaxTriviaList leading = container.GetLeadingTrivia();
             SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
