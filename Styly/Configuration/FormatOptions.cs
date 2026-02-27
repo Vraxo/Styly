@@ -13,4 +13,5 @@ public class FormatOptions
     public ModifiersOptions Modifiers { get; set; } = new();
     public OptimizationOptions Optimization { get; set; } = new();
     public TernaryOptions Ternary { get; set; } = new();
+    public RawStringsOptions RawStrings { get; set; } = new();
 }

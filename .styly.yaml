@@ -13,9 +13,12 @@ Format:
     AnonymousType: MultiLine
   Ternary:
     Style: MultiLine
+  RawStrings:
+    PreferRawForMultiline: true
   Spacing:
     EmptyLineBeforeControlFlow: true
     EmptyLineAfterControlFlow: true
+    EmptyLineAroundMultiLineExpression: true
   Modifiers:
     MakeStaticWhenPossible: true
   Optimization:
