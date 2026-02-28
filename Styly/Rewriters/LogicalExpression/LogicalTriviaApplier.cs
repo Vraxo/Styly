@@ -19,13 +19,18 @@ internal class LogicalTriviaApplier : CSharpSyntaxRewriter
         if (IsLogicalOperator(token) && (token.Parent is BinaryExpressionSyntax or BinaryPatternSyntax))
         {
             // If it's a logical operator within a binary expression or pattern, wrap it
-            return token
-                .WithLeadingTrivia(SyntaxFactory.TriviaList(_newline).AddRange(_indent))
-                .WithTrailingTrivia(SyntaxFactory.Space);
+            return NameMe(token);
         }
 
         // If it's a logical operator within a binary expression or pattern, wrap it
         return base.VisitToken(token);
+    }
+
+    private SyntaxToken NameMe(SyntaxToken token)
+    {
+        return token
+            .WithLeadingTrivia(SyntaxFactory.TriviaList(_newline).AddRange(_indent))
+            .WithTrailingTrivia(SyntaxFactory.Space);
     }
 
     private static bool IsLogicalOperator(SyntaxToken token)

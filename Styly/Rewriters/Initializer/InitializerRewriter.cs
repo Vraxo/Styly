@@ -42,66 +42,115 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
             InitializerStyle.MultiLine => FormattingAction.MultiLine,
             // Preserve mode: only force SingleLine if it was already single-line (recovery)
             InitializerStyle.Preserve => wasSingleLine
-            ? FormattingAction.SingleLine
-            : FormattingAction.None,
+                ? FormattingAction.SingleLine
+                : FormattingAction.None,
             _ => wasSingleLine
-            ? FormattingAction.SingleLine
-            : FormattingAction.None,
+                ? FormattingAction.SingleLine
+                : FormattingAction.None,
         };
     }
 
     public override SyntaxNode? VisitAnonymousObjectCreationExpression(AnonymousObjectCreationExpressionSyntax node)
+    {
+        FormattingAction action = GetFormattingAction(node);
+
+        return action switch
+        {
+            FormattingAction.SingleLine => NameMe_6(node),
+            FormattingAction.MultiLine => NameMe_5(node),
+            FormattingAction.None => throw new NotImplementedException(),
+            _ => base.VisitAnonymousObjectCreationExpression(node)
+        };
+    }
+
+    private FormattingAction GetFormattingAction(AnonymousObjectCreationExpressionSyntax node)
     {
         bool hasComments = InitializerFormatter.HasComments(node);
         bool wasSingleLine = node.HasAnnotations(LayoutAnnotator.SingleLineAnnotationKind);
         bool hasItems = node.Initializers.Any();
 
         FormattingAction action = DetermineAction(_options.AnonymousType, hasComments, wasSingleLine, hasItems);
+        return action;
+    }
 
-        if (action == FormattingAction.SingleLine)
-        {
-            SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListSingleLine(node.Initializers);
-            AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
+    private static AnonymousObjectCreationExpressionSyntax NameMe_6(AnonymousObjectCreationExpressionSyntax node)
+    {
+        SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListSingleLine(node.Initializers);
+        AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
 
-            return cleanNode.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(cleanNode.OpenBraceToken)).WithInitializers(newMembers).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(cleanNode.CloseBraceToken));
-        }
+        return GetSingleLineCleanNode(newMembers, cleanNode);
+    }
 
-        if (action == FormattingAction.MultiLine)
-        {
-            SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
-            SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListMultiLine(node.Initializers, parentIndent);
-            AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
+    private static AnonymousObjectCreationExpressionSyntax NameMe_5(AnonymousObjectCreationExpressionSyntax node)
+    {
+        SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
+        SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListMultiLine(node.Initializers, parentIndent);
+        AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
 
-            return cleanNode.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(cleanNode.OpenBraceToken, parentIndent)).WithInitializers(newMembers).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(cleanNode.CloseBraceToken, parentIndent));
-        }
+        return GetMultiLineCleanNode(parentIndent, newMembers, cleanNode);
+    }
 
-        return base.VisitAnonymousObjectCreationExpression(node);
+    private static AnonymousObjectCreationExpressionSyntax GetMultiLineCleanNode(SyntaxTriviaList parentIndent, SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers, AnonymousObjectCreationExpressionSyntax cleanNode)
+    {
+        return cleanNode
+            .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(cleanNode.OpenBraceToken, parentIndent))
+            .WithInitializers(newMembers)
+            .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(cleanNode.CloseBraceToken, parentIndent));
+    }
+
+    private static AnonymousObjectCreationExpressionSyntax GetSingleLineCleanNode(SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers, AnonymousObjectCreationExpressionSyntax cleanNode)
+    {
+        return cleanNode
+            .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(cleanNode.OpenBraceToken))
+            .WithInitializers(newMembers)
+            .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(cleanNode.CloseBraceToken));
     }
 
     public override SyntaxNode? VisitCollectionExpression(CollectionExpressionSyntax node)
+    {
+        FormattingAction action = GetFormattingAction(node);
+
+        return action switch
+        {
+            FormattingAction.SingleLine => NameMe_4(node),
+            FormattingAction.MultiLine => NameMe_3(node),
+            FormattingAction.None => throw new NotImplementedException(),
+            _ => base.VisitCollectionExpression(node)
+        };
+    }
+
+    private FormattingAction GetFormattingAction(CollectionExpressionSyntax node)
     {
         bool hasComments = InitializerFormatter.HasComments(node);
         bool wasSingleLine = node.HasAnnotations(LayoutAnnotator.SingleLineAnnotationKind);
         bool hasItems = node.Elements.Any();
 
-        FormattingAction action = DetermineAction(_options.Collection, hasComments, wasSingleLine, hasItems);
+        return DetermineAction(_options.Collection, hasComments, wasSingleLine, hasItems);
+    }
 
-        if (action == FormattingAction.SingleLine)
-        {
-            SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListSingleLine(node.Elements);
+    private static CollectionExpressionSyntax NameMe_4(CollectionExpressionSyntax node)
+    {
+        SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListSingleLine(node.Elements);
 
-            return node.WithOpenBracketToken(node.OpenBracketToken.WithLeadingTrivia(SyntaxFactory.TriviaList()).WithTrailingTrivia(SyntaxFactory.Space)).WithElements(newElements).WithCloseBracketToken(node.CloseBracketToken.WithLeadingTrivia(SyntaxFactory.Space));
-        }
+        SyntaxToken openBracketToken = node.OpenBracketToken
+            .WithLeadingTrivia(SyntaxFactory.TriviaList())
+            .WithTrailingTrivia(SyntaxFactory.Space);
 
-        if (action == FormattingAction.MultiLine)
-        {
-            SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
-            SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListMultiLine(node.Elements, parentIndent);
+        return node
+            .WithOpenBracketToken(openBracketToken)
+            .WithElements(newElements)
+            .WithCloseBracketToken(node.CloseBracketToken.WithLeadingTrivia(SyntaxFactory.Space));
+    }
 
-            return node.WithOpenBracketToken(InitializerFormatter.FormatOpenBraceMultiLine(node.OpenBracketToken, parentIndent)).WithElements(newElements).WithCloseBracketToken(InitializerFormatter.FormatCloseBraceMultiLine(node.CloseBracketToken, parentIndent));
-        }
+    private static CollectionExpressionSyntax NameMe_3(CollectionExpressionSyntax node)
+    {
+        SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
+        SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListMultiLine(node.Elements, parentIndent);
 
-        return base.VisitCollectionExpression(node);
+        return node
+            .WithOpenBracketToken(InitializerFormatter.FormatOpenBraceMultiLine(node.OpenBracketToken, parentIndent))
+            .WithElements(newElements)
+            .WithCloseBracketToken(InitializerFormatter.FormatCloseBraceMultiLine(node.CloseBracketToken, parentIndent));
     }
 
     public override SyntaxNode? VisitEqualsValueClause(EqualsValueClauseSyntax node)
@@ -150,38 +199,66 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
             return VisitBaseExpression(node);
         }
 
+        return GetFormattingAction(node, initializer) switch
+        {
+            FormattingAction.SingleLine => NameMe_1(node, initializer, withInitializer),
+            FormattingAction.MultiLine => NameMe_2(node, initializer, withInitializer),
+            FormattingAction.None => throw new NotImplementedException(),
+            _ => VisitBaseExpression(node)
+        };
+    }
+
+    private FormattingAction GetFormattingAction<TNode>(TNode node, InitializerExpressionSyntax initializer)
+        where TNode : ExpressionSyntax
+    {
         bool hasComments = InitializerFormatter.HasComments(node);
         bool wasSingleLine = initializer.HasAnnotations(LayoutAnnotator.SingleLineAnnotationKind);
         bool hasItems = initializer.Expressions.Any();
 
-        bool isColl = initializer.IsKind(SyntaxKind.CollectionInitializerExpression) || initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
+        InitializerStyle style = GetInitializerStyle(initializer);
+        FormattingAction action = DetermineAction(style, hasComments, wasSingleLine, hasItems);
+        return action;
+    }
 
-        InitializerStyle style = isColl
+    private static SyntaxNode NameMe_2<TNode>(TNode node, InitializerExpressionSyntax initializer, Func<TNode, InitializerExpressionSyntax, TNode> withInitializer)
+        where TNode : ExpressionSyntax
+    {
+        SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
+        SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListMultiLine(initializer.Expressions, parentIndent);
+        TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
+
+        InitializerExpressionSyntax newInit = initializer
+            .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(initializer.OpenBraceToken, parentIndent))
+            .WithExpressions(newExps)
+            .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(initializer.CloseBraceToken, parentIndent));
+
+        return withInitializer(cleanNode, newInit);
+    }
+
+    private static SyntaxNode NameMe_1<TNode>(TNode node, InitializerExpressionSyntax initializer, Func<TNode, InitializerExpressionSyntax, TNode> withInitializer)
+        where TNode : ExpressionSyntax
+    {
+        SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListSingleLine(initializer.Expressions);
+        TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
+
+        InitializerExpressionSyntax newInit = initializer
+            .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(initializer.OpenBraceToken))
+            .WithExpressions(newExps)
+            .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(initializer.CloseBraceToken));
+
+        return withInitializer(cleanNode, newInit);
+    }
+
+    private InitializerStyle GetInitializerStyle(InitializerExpressionSyntax initializer)
+    {
+        return IsCollectionInitializer(initializer)
             ? _options.Collection
             : _options.Object;
+    }
 
-        FormattingAction action = DetermineAction(style, hasComments, wasSingleLine, hasItems);
-
-        if (action == FormattingAction.SingleLine)
-        {
-            SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListSingleLine(initializer.Expressions);
-            TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
-            InitializerExpressionSyntax newInit = initializer.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(initializer.OpenBraceToken)).WithExpressions(newExps).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(initializer.CloseBraceToken));
-
-            return withInitializer(cleanNode, newInit);
-        }
-
-        if (action == FormattingAction.MultiLine)
-        {
-            SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
-            SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListMultiLine(initializer.Expressions, parentIndent);
-            TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
-            InitializerExpressionSyntax newInit = initializer.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(initializer.OpenBraceToken, parentIndent)).WithExpressions(newExps).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(initializer.CloseBraceToken, parentIndent));
-
-            return withInitializer(cleanNode, newInit);
-        }
-
-        return VisitBaseExpression(node);
+    private static bool IsCollectionInitializer(InitializerExpressionSyntax initializer)
+    {
+        return initializer.IsKind(SyntaxKind.CollectionInitializerExpression) || initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
     }
 
     private SyntaxNode VisitBaseExpression(SyntaxNode node)

@@ -35,11 +35,14 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
             return base.VisitMemberAccessExpression(node);
         }
 
-        ExpressionSyntax expressionSyntax = _options.Style == CallChainStyle.MultiLine
+        return (SyntaxNode? )GetExpressionSyntax(node);
+    }
+
+    private ExpressionSyntax GetExpressionSyntax(MemberAccessExpressionSyntax node)
+    {
+        return _options.Style == CallChainStyle.MultiLine
             ? FormatMultiLine(node)
             : FormatSingleLine(node);
-
-        return (SyntaxNode? )expressionSyntax;
     }
 
     private static bool IsChained(MemberAccessExpressionSyntax node)
@@ -59,16 +62,17 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
             {
                 count++;
                 current = memberAccess.Expression;
+                continue;
             }
-            else if (current is InvocationExpressionSyntax invocation)
+
+            if (current is InvocationExpressionSyntax invocation)
             {
                 count++;
                 current = invocation.Expression;
+                continue;
             }
-            else
-            {
-                break;
-            }
+
+            break;
         }
 
         return count >= 2;

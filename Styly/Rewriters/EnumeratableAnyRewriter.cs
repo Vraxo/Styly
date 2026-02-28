@@ -31,15 +31,11 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
             return base.VisitInvocationExpression(node);
         }
 
-        string? propertyName = GetLengthOrCountProperty(typeInfo.Type);
-
-        if (propertyName is null)
+        return GetLengthOrCountProperty(typeInfo.Type) switch
         {
-            return base.VisitInvocationExpression(node);
-        }
-
-        // Replace .Any() with .Count != 0
-        return CreateCountComparison(memberAccess.Expression, propertyName);
+            null => base.VisitInvocationExpression(node),
+            _ => CreateCountComparison(memberAccess.Expression, GetLengthOrCountProperty(typeInfo.Type))
+        };
     }
 
     private bool IsLinqAny(InvocationExpressionSyntax node)

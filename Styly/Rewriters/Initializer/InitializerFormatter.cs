@@ -70,7 +70,7 @@ internal static class InitializerFormatter
     public static SeparatedSyntaxList<T> FormatListMultiLine<T>(SeparatedSyntaxList<T> items, SyntaxTriviaList parentIndent)
         where T : SyntaxNode
     {
-        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
+        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string(' ', IndentSize)));
         SyntaxTrivia newline = SyntaxFactory.CarriageReturnLineFeed;
 
         IEnumerable<T> nodes = items.Select(i =>
@@ -91,29 +91,36 @@ internal static class InitializerFormatter
     public static TNode StripPrecedingTrivia<TNode>(TNode node)
         where TNode : SyntaxNode
     {
-        if (node is ObjectCreationExpressionSyntax oce)
+        return node switch
         {
-            return (TNode)(object)(oce.ArgumentList is not null
-                ? oce.WithArgumentList(oce.ArgumentList.WithoutTrailingTrivia())
-                : oce.WithType(oce.Type.WithoutTrailingTrivia()));
-        }
+            ObjectCreationExpressionSyntax oce => NameMe_1<TNode>(oce),
+            ImplicitObjectCreationExpressionSyntax ioce => NameMe_2<TNode>(ioce),
+            ArrayCreationExpressionSyntax ace => NameMe_3<TNode>(ace),
+            ImplicitArrayCreationExpressionSyntax iace => NameMe_4<TNode>(iace),
+            _ => node
+        };
+    }
 
-        if (node is ImplicitObjectCreationExpressionSyntax ioce)
-        {
-            return (TNode)(object)ioce.WithArgumentList(ioce.ArgumentList.WithoutTrailingTrivia());
-        }
+    private static TNode NameMe_4<TNode>(ImplicitArrayCreationExpressionSyntax iace) where TNode : SyntaxNode
+    {
+        return (TNode)(object)iace.WithCloseBracketToken(iace.CloseBracketToken.WithTrailingTrivia(SyntaxFactory.TriviaList()));
+    }
 
-        if (node is ArrayCreationExpressionSyntax ace)
-        {
-            return (TNode)(object)ace.WithType(ace.Type.WithoutTrailingTrivia());
-        }
+    private static TNode NameMe_3<TNode>(ArrayCreationExpressionSyntax ace) where TNode : SyntaxNode
+    {
+        return (TNode)(object)ace.WithType(ace.Type.WithoutTrailingTrivia());
+    }
 
-        if (node is ImplicitArrayCreationExpressionSyntax iace)
-        {
-            return (TNode)(object)iace.WithCloseBracketToken(iace.CloseBracketToken.WithTrailingTrivia(SyntaxFactory.TriviaList()));
-        }
+    private static TNode NameMe_2<TNode>(ImplicitObjectCreationExpressionSyntax ioce) where TNode : SyntaxNode
+    {
+        return (TNode)(object)ioce.WithArgumentList(ioce.ArgumentList.WithoutTrailingTrivia());
+    }
 
-        return node;
+    private static TNode NameMe_1<TNode>(ObjectCreationExpressionSyntax oce) where TNode : SyntaxNode
+    {
+        return (TNode)(object)(oce.ArgumentList is not null
+            ? oce.WithArgumentList(oce.ArgumentList.WithoutTrailingTrivia())
+            : oce.WithType(oce.Type.WithoutTrailingTrivia()));
     }
 
     public static SyntaxToken FormatOpenBraceSingleLine(SyntaxToken openBrace)
