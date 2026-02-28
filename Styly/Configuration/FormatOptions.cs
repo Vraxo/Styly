@@ -1,5 +1,3 @@
-using Styly.Core;
-
 namespace Styly.Configuration;
 
 public class FormatOptions

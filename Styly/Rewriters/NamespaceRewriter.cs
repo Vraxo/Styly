@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Styly.Core;
+using Styly.Configuration;
 using Styly.Rewriters.Indentation;
 
 namespace Styly.Rewriters;

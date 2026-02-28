@@ -14,7 +14,7 @@ internal class TokenSpacingCleanupRewriter : CSharpSyntaxRewriter
 
     private static SyntaxNode CleanupTokenSpacing(SyntaxNode root)
     {
-        List<SyntaxToken> tokens = root.DescendantTokens().ToList();
+        List<SyntaxToken> tokens = [ ..root.DescendantTokens() ];
         Dictionary<SyntaxToken, SyntaxToken> replacements = [];
 
         for (int i = 1; i < tokens.Count; i++)

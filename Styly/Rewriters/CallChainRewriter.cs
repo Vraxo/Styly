@@ -99,7 +99,9 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
 
     private static SyntaxNode FormatSingleLine(MemberAccessExpressionSyntax node)
     {
-        return FlattenChain(node).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+        return FlattenChain(node)
+            .WithLeadingTrivia(node.GetLeadingTrivia())
+            .WithTrailingTrivia(node.GetTrailingTrivia());
     }
 
     private static ExpressionSyntax FlattenChain(ExpressionSyntax node)
@@ -109,24 +111,27 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
             return SyntaxFactory.InvocationExpression(FlattenChain(invocation.Expression), invocation.ArgumentList);
         }
 
-        if (node is MemberAccessExpressionSyntax memberAccess)
+        if (node is not MemberAccessExpressionSyntax memberAccess)
         {
-            ExpressionSyntax expression = FlattenChain(memberAccess.Expression);
-
-            SyntaxToken dotToken = SyntaxFactory
-                .Token(SyntaxKind.DotToken)
-                .WithLeadingTrivia(SyntaxFactory.TriviaList())
-                .WithTrailingTrivia(SyntaxFactory.TriviaList());
-
-            SimpleNameSyntax name = memberAccess.Name.WithoutLeadingTrivia().WithoutTrailingTrivia();
-
-            return SyntaxFactory
-                .MemberAccessExpression(memberAccess.Kind(), expression, dotToken, name)
-                .WithoutLeadingTrivia()
-                .WithoutTrailingTrivia();
+            return node.WithoutTrailingTrivia();
         }
 
-        return node.WithoutTrailingTrivia();
+        ExpressionSyntax expression = FlattenChain(memberAccess.Expression);
+
+        SyntaxToken dotToken = SyntaxFactory
+            .Token(SyntaxKind.DotToken)
+            .WithLeadingTrivia(SyntaxFactory.TriviaList())
+            .WithTrailingTrivia(SyntaxFactory.TriviaList());
+
+        SimpleNameSyntax name = memberAccess
+            .Name
+            .WithoutLeadingTrivia()
+            .WithoutTrailingTrivia();
+
+        return SyntaxFactory
+            .MemberAccessExpression(memberAccess.Kind(), expression, dotToken, name)
+            .WithoutLeadingTrivia()
+            .WithoutTrailingTrivia();
     }
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
@@ -134,17 +139,16 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
         SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
             or MemberDeclarationSyntax);
 
-        if (container is not null)
+        if (container is null)
         {
-            SyntaxTriviaList leading = container.GetLeadingTrivia();
-            SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
-
-            if (!lastWhitespace.IsKind(SyntaxKind.None))
-            {
-                return SyntaxFactory.TriviaList(lastWhitespace);
-            }
+            return SyntaxFactory.TriviaList();
         }
 
-        return SyntaxFactory.TriviaList();
+        SyntaxTriviaList leading = container.GetLeadingTrivia();
+        SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
+
+        return !lastWhitespace.IsKind(SyntaxKind.None)
+            ? SyntaxFactory.TriviaList(lastWhitespace)
+            : SyntaxFactory.TriviaList();
     }
 }

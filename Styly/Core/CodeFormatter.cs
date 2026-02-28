@@ -116,12 +116,24 @@ public static class CodeFormatter
         if (options.Usings.RemoveUnused)
         {
             (SemanticModel? model, SyntaxNode? root) = await GetCtx();
-            IEnumerable<UsingDirectiveSyntax> unused = model.GetDiagnostics().Where(d => d.Id == "CS8019").Select(d => root.FindNode(d.Location.SourceSpan)).OfType<UsingDirectiveSyntax>();
 
-            if (unused.Any())
+            IEnumerable<UsingDirectiveSyntax> unused = model
+                .GetDiagnostics()
+                .Where(d =>
             {
-                document = document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
+                return d.Id == "CS8019";
+            })
+                .Select(d => root.FindNode(d.Location.SourceSpan))
+                .OfType<UsingDirectiveSyntax>();
+
+            if (!unused.Any())
+            {
+                return document;
             }
+
+            document = document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
+
+            return document;
         }
 
         return document;

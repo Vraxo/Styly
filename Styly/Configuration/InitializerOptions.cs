@@ -1,12 +1,5 @@
 namespace Styly.Configuration;
 
-public enum InitializerStyle
-{
-    Preserve,
-    SingleLine,
-    MultiLine
-}
-
 public class InitializerOptions
 {
     public InitializerStyle AnonymousType { get; set; } = InitializerStyle.Preserve;

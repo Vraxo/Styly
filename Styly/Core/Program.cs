@@ -49,6 +49,23 @@ public class Program
         StylyConfig config = LoadConfig(configPath);
         string baseDir = Path.GetDirectoryName(configPath)!;
         // 1. Find all matching files
+        bool flowControl = FindAllMatchingFiles(config, baseDir, out List<string> filePaths);
+
+        if (!flowControl)
+        {
+            return;
+        }
+
+        // 2. Build the Semantic Workspace
+        Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
+        using AdhocWorkspace workspace = CreateSemanticWorkspace();
+        Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
+        // 3. Add files to the project
+        project = await AddFilesToTheProject(config, filePaths, project);
+    }
+
+    private static bool FindAllMatchingFiles(StylyConfig config, string baseDir, out List<string> filePaths)
+    {
         Matcher matcher = new();
 
         if (config.Include.Count == 0)
@@ -62,26 +79,27 @@ public class Program
 
         config.Exclude.ForEach(p => matcher.AddExclude(p));
 
-        List<string> filePaths = matcher.GetResultsInFullPath(baseDir).ToList();
+        filePaths = [ ..matcher.GetResultsInFullPath(baseDir) ];
 
         if (filePaths.Count == 0)
         {
             Console.WriteLine("No files matched the inclusion patterns.");
-            return;
+            return false;
         }
 
-        // 2. Build the Semantic Workspace
-        Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
-        using AdhocWorkspace workspace = CreateSemanticWorkspace();
-        Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
-        // 3. Add files to the project
-        Dictionary<DocumentId, string> documentIds = new();
+        return true;
+    }
+
+    private static async Task<Project> AddFilesToTheProject(StylyConfig config, List<string> filePaths, Project project)
+    {
+        Dictionary<DocumentId, string> documentIds = [];
 
         foreach (string path in filePaths)
         {
             SourceText sourceText = SourceText.From(await File.ReadAllTextAsync(path));
             Document document = project.AddDocument(Path.GetFileName(path), sourceText, filePath: path);
             project = document.Project;
+
             documentIds.Add(document.Id, path);
         }
 
@@ -97,6 +115,7 @@ public class Program
         }
 
         Console.WriteLine("Done.");
+        return project;
     }
 
     private static AdhocWorkspace CreateSemanticWorkspace()

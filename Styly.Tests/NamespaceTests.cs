@@ -1,5 +1,4 @@
 using Styly.Configuration;
-using Styly.Core;
 
 namespace Styly.Tests;
 

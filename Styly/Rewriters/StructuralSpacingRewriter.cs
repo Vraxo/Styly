@@ -22,16 +22,18 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
     {
         node = EnsureUsingSeparator(node, node.Usings, node.Members, (n, m) => n.WithMembers(m));
 
-        if (!node.Usings.Any() 
-            && node.Members.Any())
+        if (node.Usings.Any() 
+            || !node.Members.Any())
         {
-            MemberDeclarationSyntax firstMember = node.Members[0];
-            var newFirstMember = SpacingUtility.EnsureBlankLine(node.SemicolonToken, firstMember);
+            return base.VisitFileScopedNamespaceDeclaration(node);
+        }
 
-            if (newFirstMember != firstMember)
-            {
-                node = node.WithMembers(node.Members.Replace(firstMember, newFirstMember));
-            }
+        MemberDeclarationSyntax firstMember = node.Members[0];
+        MemberDeclarationSyntax newFirstMember = SpacingUtility.EnsureBlankLine(node.SemicolonToken, firstMember);
+
+        if (newFirstMember != firstMember)
+        {
+            node = node.WithMembers(node.Members.Replace(firstMember, newFirstMember));
         }
 
         return base.VisitFileScopedNamespaceDeclaration(node);
@@ -48,7 +50,7 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
 
         UsingDirectiveSyntax lastUsing = usings.Last();
         MemberDeclarationSyntax firstMember = members.First();
-        var newFirstMember = SpacingUtility.EnsureBlankLine(lastUsing, firstMember);
+        MemberDeclarationSyntax newFirstMember = SpacingUtility.EnsureBlankLine(lastUsing, firstMember);
 
         return newFirstMember != firstMember
             ? withMembers(node, members.Replace(firstMember, newFirstMember))

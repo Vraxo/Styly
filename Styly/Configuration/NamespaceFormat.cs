@@ -1,4 +1,4 @@
-﻿namespace Styly.Core;
+﻿namespace Styly.Configuration;
 
 public enum NamespaceFormat
 {

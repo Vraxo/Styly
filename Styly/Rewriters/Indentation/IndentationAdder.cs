@@ -32,28 +32,30 @@ internal class IndentationAdder : CSharpSyntaxRewriter
             SyntaxTrivia current = originalTrivia[i];
             newTrivia.Add(current);
 
-            if (current.IsKind(SyntaxKind.EndOfLineTrivia))
+            if (!current.IsKind(SyntaxKind.EndOfLineTrivia))
             {
-                // We just added a newline. We need to add indentation now.
-                // Check if the NEXT trivia in the original list is whitespace.
-                if (i + 1 < originalTrivia.Count 
-                    && originalTrivia[i + 1].IsKind(SyntaxKind.WhitespaceTrivia))
-                {
-                    // The next trivia is whitespace (existing indentation).
-                    // We combine our indent with it.
-                    SyntaxTrivia existingWhitespace = originalTrivia[i + 1];
-                    string combinedIndent = existingWhitespace.ToString() + Indent;
+                continue;
+            }
 
-                    newTrivia.Add(SyntaxFactory.Whitespace(combinedIndent));
-                    // Skip the next trivia since we've merged it.
-                    i++;
-                }
-                else
-                {
-                    // The next trivia is NOT whitespace (or we are at the end of the list).
-                    // Just insert our indent.
-                    newTrivia.Add(SyntaxFactory.Whitespace(Indent));
-                }
+            // We just added a newline. We need to add indentation now.
+            // Check if the NEXT trivia in the original list is whitespace.
+            if (i + 1 < originalTrivia.Count 
+                && originalTrivia[i + 1].IsKind(SyntaxKind.WhitespaceTrivia))
+            {
+                // The next trivia is whitespace (existing indentation).
+                // We combine our indent with it.
+                SyntaxTrivia existingWhitespace = originalTrivia[i + 1];
+                string combinedIndent = existingWhitespace.ToString() + Indent;
+
+                newTrivia.Add(SyntaxFactory.Whitespace(combinedIndent));
+                // Skip the next trivia since we've merged it.
+                i++;
+            }
+            else
+            {
+                // The next trivia is NOT whitespace (or we are at the end of the list).
+                // Just insert our indent.
+                newTrivia.Add(SyntaxFactory.Whitespace(Indent));
             }
         }
 

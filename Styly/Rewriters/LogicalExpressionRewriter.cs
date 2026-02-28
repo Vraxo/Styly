@@ -60,41 +60,16 @@ internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
         SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
             or MemberDeclarationSyntax);
 
-        if (container is not null)
+        if (container is null)
         {
-            SyntaxTriviaList leading = container.GetLeadingTrivia();
-            SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
-
-            if (!lastWhitespace.IsKind(SyntaxKind.None))
-            {
-                return SyntaxFactory.TriviaList(lastWhitespace);
-            }
+            return SyntaxFactory.TriviaList();
         }
 
-        return SyntaxFactory.TriviaList();
-    }
+        SyntaxTriviaList leading = container.GetLeadingTrivia();
+        SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
 
-    private class LogicalTriviaApplier : CSharpSyntaxRewriter
-    {
-        private readonly SyntaxTriviaList _indent;
-        private readonly SyntaxTrivia _newline = SyntaxFactory.CarriageReturnLineFeed;
-        public LogicalTriviaApplier(SyntaxTriviaList indent)
-        {
-            _indent = indent;
-        }
-
-        public override SyntaxToken VisitToken(SyntaxToken token)
-        {
-            bool isLogicalOperator = token.IsKind(SyntaxKind.AmpersandAmpersandToken) 
-                || token.IsKind(SyntaxKind.BarBarToken) 
-                || token.IsKind(SyntaxKind.AndKeyword) 
-                || token.IsKind(SyntaxKind.OrKeyword);
-            // If it's a logical operator within a binary expression or pattern, wrap it
-            return isLogicalOperator 
-                && (token.Parent is BinaryExpressionSyntax 
-                or BinaryPatternSyntax)
-                ? token.WithLeadingTrivia(SyntaxFactory.TriviaList(_newline).AddRange(_indent)).WithTrailingTrivia(SyntaxFactory.Space)
-                : base.VisitToken(token);
-        }
+        return !lastWhitespace.IsKind(SyntaxKind.None)
+            ? SyntaxFactory.TriviaList(lastWhitespace)
+            : SyntaxFactory.TriviaList();
     }
 }

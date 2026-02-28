@@ -110,7 +110,6 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitImplicitObjectCreationExpression(ImplicitObjectCreationExpressionSyntax node)
     {
-        // new() { ... } or new()
         return node.ArgumentList.Arguments.Any()
             ? base.VisitImplicitObjectCreationExpression(node)
             : !IsCollectionLike(node) ? base.VisitImplicitObjectCreationExpression(node) : CreateCollectionExpression(node.Initializer, node);

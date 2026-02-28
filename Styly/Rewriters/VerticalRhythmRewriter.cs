@@ -15,9 +15,12 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)
     {
-        SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(node.Members, m => m is GlobalStatementSyntax g
-            ? g.Statement
-            : null);
+        SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(node.Members, m =>
+        {
+            return m is GlobalStatementSyntax g
+                ? g.Statement
+                : null;
+        });
 
         return base.VisitCompilationUnit(node.WithMembers(newMembers));
     }
@@ -54,7 +57,7 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
             return items;
         }
 
-        List<T> newItems = new List<T> { items[0] };
+        List<T> newItems = [ items[0] ];
 
         for (int i = 1; i < items.Count; i++)
         {
@@ -64,14 +67,7 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
             StatementSyntax? prevStmt = getStatement(prev);
             StatementSyntax? currStmt = getStatement(curr);
 
-            bool shouldGap = (_options.EmptyLineBeforeControlFlow 
-                && IsControlFlow(currStmt)) 
-                || (_options.EmptyLineAfterControlFlow 
-                && IsControlFlow(prevStmt)) 
-                || (_options.EmptyLineAroundMultiLineExpression 
-                && (IsHeavyExpression(prevStmt) 
-                || IsHeavyExpression(currStmt))) 
-                || curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
+            bool shouldGap = ShouldGap(curr, prevStmt, currStmt);
 
             if (shouldGap)
             {
@@ -82,6 +78,19 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
         }
 
         return SyntaxFactory.List(newItems);
+    }
+
+    private bool ShouldGap<T>(T curr, StatementSyntax? prevStmt, StatementSyntax? currStmt)
+        where T : SyntaxNode
+    {
+        return (_options.EmptyLineBeforeControlFlow 
+            && IsControlFlow(currStmt)) 
+            || (_options.EmptyLineAfterControlFlow 
+            && IsControlFlow(prevStmt)) 
+            || (_options.EmptyLineAroundMultiLineExpression 
+            && (IsHeavyExpression(prevStmt) 
+            || IsHeavyExpression(currStmt))) 
+            || curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
     }
 
     private static bool IsControlFlow(StatementSyntax? s)

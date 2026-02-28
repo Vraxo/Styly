@@ -32,10 +32,12 @@ public class TrailingTriviaTrimmer : CSharpSyntaxRewriter
         {
             SyntaxTrivia trivia = trailingTrivia[i];
 
-            if (!IsWhitespaceOrNewline(trivia))
+            if (IsWhitespaceOrNewline(trivia))
             {
-                return i;
+                continue;
             }
+
+            return i;
         }
 
         return -1;
