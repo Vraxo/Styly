@@ -18,24 +18,21 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitLiteralExpression(LiteralExpressionSyntax node)
     {
-        if (!_options.PreferRawForMultiline 
-            || !node.IsKind(SyntaxKind.StringLiteralExpression))
+        if (!_options.PreferRawForMultiline || !node.IsKind(SyntaxKind.StringLiteralExpression))
         {
             return base.VisitLiteralExpression(node);
         }
 
         // CRITICAL: Do not process existing raw strings.
         // Re-processing raw strings changes their semantic value by baking in current indentation.
-        if (node.Token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken) 
-            || node.Token.IsKind(SyntaxKind.SingleLineRawStringLiteralToken))
+        if (node.Token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken) || node.Token.IsKind(SyntaxKind.SingleLineRawStringLiteralToken))
         {
             return base.VisitLiteralExpression(node);
         }
 
         string value = node.Token.ValueText;
         // Only convert if the string contains actual newline characters
-        return !value.Contains('\n') 
-            && !value.Contains('\r')
+        return !value.Contains('\n') && !value.Contains('\r')
             ? base.VisitLiteralExpression(node)
             : ConvertToRawString(node, value);
     }
@@ -101,8 +98,7 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
-            or MemberDeclarationSyntax);
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
 
         if (container is not null)
         {

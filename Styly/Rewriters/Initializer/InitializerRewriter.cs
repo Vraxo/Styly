@@ -108,8 +108,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     {
         EqualsValueClauseSyntax visited = (EqualsValueClauseSyntax)base.VisitEqualsValueClause(node)!;
 
-        return _options.Collection == InitializerStyle.MultiLine 
-            && visited.Value is CollectionExpressionSyntax
+        return _options.Collection == InitializerStyle.MultiLine && visited.Value is CollectionExpressionSyntax
             ? visited.WithEqualsToken(visited.EqualsToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
             : visited;
     }
@@ -118,8 +117,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     {
         AssignmentExpressionSyntax visited = (AssignmentExpressionSyntax)base.VisitAssignmentExpression(node)!;
 
-        return _options.Collection == InitializerStyle.MultiLine 
-            && visited.Right is CollectionExpressionSyntax
+        return _options.Collection == InitializerStyle.MultiLine && visited.Right is CollectionExpressionSyntax
             ? visited.WithOperatorToken(visited.OperatorToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
             : visited;
     }
@@ -156,8 +154,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
         bool wasSingleLine = initializer.HasAnnotations(LayoutAnnotator.SingleLineAnnotationKind);
         bool hasItems = initializer.Expressions.Any();
 
-        bool isColl = initializer.IsKind(SyntaxKind.CollectionInitializerExpression) 
-            || initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
+        bool isColl = initializer.IsKind(SyntaxKind.CollectionInitializerExpression) || initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
 
         InitializerStyle style = isColl
             ? _options.Collection

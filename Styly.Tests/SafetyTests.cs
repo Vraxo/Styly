@@ -1,6 +1,5 @@
 using Styly.Configuration;
 using Styly.Core;
-using Xunit;
 
 namespace Styly.Tests;
 

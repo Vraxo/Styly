@@ -14,9 +14,7 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
     {
-        if (node.Expression is not MemberAccessExpressionSyntax memberAccess 
-            || memberAccess.Name.Identifier.ValueText != "Any" 
-            || node.ArgumentList.Arguments.Count != 0)
+        if (node.Expression is not MemberAccessExpressionSyntax memberAccess || memberAccess.Name.Identifier.ValueText != "Any" || node.ArgumentList.Arguments.Count != 0)
         {
             return base.VisitInvocationExpression(node);
         }
@@ -48,9 +46,7 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
     {
         SymbolInfo symbolInfo = _semanticModel.GetSymbolInfo(node);
 
-        return symbolInfo.Symbol is IMethodSymbol methodSymbol 
-            && methodSymbol.Name == "Any" 
-            && methodSymbol.ContainingType.ToDisplayString() == "System.Linq.Enumerable";
+        return symbolInfo.Symbol is IMethodSymbol methodSymbol && methodSymbol.Name == "Any" && methodSymbol.ContainingType.ToDisplayString() == "System.Linq.Enumerable";
     }
 
     private static string? GetLengthOrCountProperty(ITypeSymbol type)
@@ -64,15 +60,12 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
         // Check for explicit Count or Length properties on the type (e.g. List<T>, ICollection<T>)
         foreach (ISymbol member in type.GetMembers())
         {
-            if (member is not IPropertySymbol prop 
-                || prop.IsStatic 
-                || prop.Type.SpecialType != SpecialType.System_Int32)
+            if (member is not IPropertySymbol prop || prop.IsStatic || prop.Type.SpecialType != SpecialType.System_Int32)
             {
                 continue;
             }
 
-            if (prop.Name is "Count" 
-                or "Length")
+            if (prop.Name is "Count" or "Length")
             {
                 return prop.Name;
             }
@@ -86,8 +79,12 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
         // Generates: expression.Count != 0
         // We use NormalizeWhitespace() to ensure correct spacing around the operator (e.g. " != ")
         // instead of manually constructing trivia, which is less robust.
+        MemberAccessExpressionSyntax left = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, expression, SyntaxFactory.IdentifierName(propertyName));
+
+        LiteralExpressionSyntax right = SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(0));
+
         return SyntaxFactory
-            .BinaryExpression(SyntaxKind.NotEqualsExpression, SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, expression, SyntaxFactory.IdentifierName(propertyName)), SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(0)))
+            .BinaryExpression(SyntaxKind.NotEqualsExpression, left, right)
             .NormalizeWhitespace();
     }
 }

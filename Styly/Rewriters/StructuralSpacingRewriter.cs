@@ -22,8 +22,7 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
     {
         node = EnsureUsingSeparator(node, node.Usings, node.Members, (n, m) => n.WithMembers(m));
 
-        if (node.Usings.Any() 
-            || !node.Members.Any())
+        if (node.Usings.Any() || !node.Members.Any())
         {
             return base.VisitFileScopedNamespaceDeclaration(node);
         }
@@ -42,8 +41,7 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
     private static TNode EnsureUsingSeparator<TNode>(TNode node, SyntaxList<UsingDirectiveSyntax> usings, SyntaxList<MemberDeclarationSyntax> members, Func<TNode, SyntaxList<MemberDeclarationSyntax>, TNode> withMembers)
         where TNode : SyntaxNode
     {
-        if (!usings.Any() 
-            || !members.Any())
+        if (!usings.Any() || !members.Any())
         {
             return node;
         }

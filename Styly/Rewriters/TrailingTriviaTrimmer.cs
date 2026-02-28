@@ -10,8 +10,7 @@ public class TrailingTriviaTrimmer : CSharpSyntaxRewriter
     {
         SyntaxToken lastToken = node.GetLastToken();
 
-        if (lastToken.IsKind(SyntaxKind.None) 
-            || !lastToken.TrailingTrivia.Any())
+        if (lastToken.IsKind(SyntaxKind.None) || !lastToken.TrailingTrivia.Any())
         {
             return node;
         }
@@ -45,7 +44,6 @@ public class TrailingTriviaTrimmer : CSharpSyntaxRewriter
 
     private static bool IsWhitespaceOrNewline(SyntaxTrivia trivia)
     {
-        return trivia.IsKind(SyntaxKind.EndOfLineTrivia) 
-            || trivia.IsKind(SyntaxKind.WhitespaceTrivia);
+        return trivia.IsKind(SyntaxKind.EndOfLineTrivia) || trivia.IsKind(SyntaxKind.WhitespaceTrivia);
     }
 }

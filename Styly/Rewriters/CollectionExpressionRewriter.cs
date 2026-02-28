@@ -17,8 +17,7 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
         TypeInfo typeInfo = _semanticModel.GetTypeInfo(node);
         ITypeSymbol? type = typeInfo.ConvertedType;
 
-        if (type is null 
-            || type.TypeKind == TypeKind.Error)
+        if (type is null || type.TypeKind == TypeKind.Error)
         {
             return false;
         }
@@ -36,16 +35,14 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
         }
 
         // Check if it's a generic collection.
-        return type.AllInterfaces.Any(i => i.IsGenericType 
-            && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
+        return type.AllInterfaces.Any(i => i.IsGenericType && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
     }
 
     private static CollectionExpressionSyntax? CreateCollectionExpression(InitializerExpressionSyntax? initializer, SyntaxNode originalNode)
     {
         CollectionExpressionSyntax newExpression;
 
-        if (initializer is null 
-            || initializer.Expressions.Count == 0)
+        if (initializer is null || initializer.Expressions.Count == 0)
         {
             // Empty collection: []
             newExpression = SyntaxFactory.CollectionExpression();
@@ -71,8 +68,7 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitObjectCreationExpression(ObjectCreationExpressionSyntax node)
     {
         // Must have an initializer `{ ... }` or be parameterless `()`
-        if (node.ArgumentList is not null 
-            && node.ArgumentList.Arguments.Any())
+        if (node.ArgumentList is not null && node.ArgumentList.Arguments.Any())
         {
             return base.VisitObjectCreationExpression(node);
         }
@@ -94,24 +90,40 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
             return CreateCollectionExpression(node.Initializer, node);
         }
 
-        if (node.Type.RankSpecifiers.Count != 1 
-            || node.Type.RankSpecifiers[0].Sizes.Count != 1 
-            || node.Type.RankSpecifiers[0].Sizes[0] is not LiteralExpressionSyntax literal 
-            || literal.Token.ValueText != "0")
+        if (NameThisMethodAsap(node))
         {
             // Cannot convert things like `new int[5]` which are not initializers
             return base.VisitArrayCreationExpression(node);
         }
 
-        CollectionExpressionSyntax emptyCollection = SyntaxFactory.CollectionExpression().WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+        return GetEmptyCollection(node);
+    }
 
-        return emptyCollection;
+    private static CollectionExpressionSyntax GetEmptyCollection(ArrayCreationExpressionSyntax node)
+    {
+        return SyntaxFactory
+            .CollectionExpression()
+            .WithLeadingTrivia(node.GetLeadingTrivia())
+            .WithTrailingTrivia(node.GetTrailingTrivia());
+    }
+
+    private static bool NameThisMethodAsap(ArrayCreationExpressionSyntax node)
+    {
+        return node.Type.RankSpecifiers.Count != 1 || node.Type.RankSpecifiers[0].Sizes.Count != 1 || node.Type.RankSpecifiers[0].Sizes[0] is not LiteralExpressionSyntax literal || literal.Token.ValueText != "0";
     }
 
     public override SyntaxNode? VisitImplicitObjectCreationExpression(ImplicitObjectCreationExpressionSyntax node)
     {
-        return node.ArgumentList.Arguments.Any()
-            ? base.VisitImplicitObjectCreationExpression(node)
-            : !IsCollectionLike(node) ? base.VisitImplicitObjectCreationExpression(node) : CreateCollectionExpression(node.Initializer, node);
+        if (node.ArgumentList.Arguments.Any())
+        {
+            return base.VisitImplicitObjectCreationExpression(node);
+        }
+
+        if (IsCollectionLike(node))
+        {
+            return CreateCollectionExpression(node.Initializer, node);
+        }
+
+        return base.VisitImplicitObjectCreationExpression(node);
     }
 }

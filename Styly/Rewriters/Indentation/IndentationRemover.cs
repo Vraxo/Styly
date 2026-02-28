@@ -6,7 +6,6 @@ namespace Styly.Rewriters.Indentation;
 internal class IndentationRemover : CSharpSyntaxRewriter
 {
     private const int IndentSize = 4;
-
     public override SyntaxToken VisitToken(SyntaxToken token)
     {
         if (!token.HasLeadingTrivia)
@@ -22,9 +21,9 @@ internal class IndentationRemover : CSharpSyntaxRewriter
     {
         int lastNewlineIndex = FindLastNewlineIndex(trivia);
 
-        return lastNewlineIndex != -1
-            ? ReduceIndentationAfterNewline(trivia, lastNewlineIndex)
-            : ReduceIndentationAtStart(trivia);
+        return lastNewlineIndex == -1
+            ? ReduceIndentationAtStart(trivia)
+            : ReduceIndentationAfterNewline(trivia, lastNewlineIndex);
     }
 
     private static int FindLastNewlineIndex(SyntaxTriviaList trivia)

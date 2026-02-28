@@ -16,8 +16,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        if (_format == NamespaceFormat.File 
-            && node.Parent is CompilationUnitSyntax)
+        if (_format == NamespaceFormat.File && node.Parent is CompilationUnitSyntax)
         {
             IndentationRemover indentationRemover = new();
             SyntaxList<MemberDeclarationSyntax> unindentedMembers = [];
@@ -42,8 +41,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             {
                 SyntaxTrivia trivia = trailingTrivia[i];
 
-                if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia) 
-                    && !trivia.IsKind(SyntaxKind.EndOfLineTrivia))
+                if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia) && !trivia.IsKind(SyntaxKind.EndOfLineTrivia))
                 {
                     lastNonWhitespaceIndex = i;
                     break;
@@ -88,8 +86,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             {
                 MemberDeclarationSyntax rewritten = (MemberDeclarationSyntax)indentationAdder.Visit(m);
 
-                if (!isFirstItemProcessed 
-                    && !indentedUsings.Any())
+                if (!isFirstItemProcessed && !indentedUsings.Any())
                 {
                     rewritten = FixFirstItemIndentation(rewritten);
                     isFirstItemProcessed = true;
@@ -120,8 +117,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
         SyntaxToken firstToken = node.GetFirstToken();
         SyntaxTriviaList leading = firstToken.LeadingTrivia;
         // Strip all initial newlines and whitespace to ensure the item sits flush after the brace's newline.
-        IEnumerable<SyntaxTrivia> content = leading.SkipWhile(t => t.IsKind(SyntaxKind.EndOfLineTrivia) 
-            || t.IsKind(SyntaxKind.WhitespaceTrivia));
+        IEnumerable<SyntaxTrivia> content = leading.SkipWhile(t => t.IsKind(SyntaxKind.EndOfLineTrivia) || t.IsKind(SyntaxKind.WhitespaceTrivia));
         // Force a single indentation level
         SyntaxTriviaList newTrivia = SyntaxFactory.TriviaList(SyntaxFactory.Whitespace("    "));
         newTrivia = newTrivia.AddRange(content);

@@ -14,16 +14,9 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
-        return node.Body is null 
-            && node.ExpressionBody is null
+        return node.Body is null && node.ExpressionBody is null
             ? base.VisitMethodDeclaration(node)
-            : node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword) 
-            || m.IsKind(SyntaxKind.AbstractKeyword) 
-            || m.IsKind(SyntaxKind.VirtualKeyword) 
-            || m.IsKind(SyntaxKind.OverrideKeyword) 
-            || m.IsKind(SyntaxKind.NewKeyword) 
-            || m.IsKind(SyntaxKind.PartialKeyword)) ? base.VisitMethodDeclaration(node) : node.ExplicitInterfaceSpecifier is not null ? base.VisitMethodDeclaration(node) : AccessesInstanceData(node) 
-            || IsInterfaceImplementation(node) ? base.VisitMethodDeclaration(node) : MakeStatic(node);
+            : node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword) || m.IsKind(SyntaxKind.AbstractKeyword) || m.IsKind(SyntaxKind.VirtualKeyword) || m.IsKind(SyntaxKind.OverrideKeyword) || m.IsKind(SyntaxKind.NewKeyword) || m.IsKind(SyntaxKind.PartialKeyword)) ? base.VisitMethodDeclaration(node) : node.ExplicitInterfaceSpecifier is not null ? base.VisitMethodDeclaration(node) : AccessesInstanceData(node) || IsInterfaceImplementation(node) ? base.VisitMethodDeclaration(node) : MakeStatic(node);
     }
 
     private bool IsInterfaceImplementation(MethodDeclarationSyntax node)
@@ -69,8 +62,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
     {
         SyntaxNode body = (SyntaxNode? )method.Body ?? method.ExpressionBody!;
         // 1. Check for 'this' or 'base' keywords
-        if (body.DescendantTokens().Any(t => t.IsKind(SyntaxKind.ThisKeyword) 
-            || t.IsKind(SyntaxKind.BaseKeyword)))
+        if (body.DescendantTokens().Any(t => t.IsKind(SyntaxKind.ThisKeyword) || t.IsKind(SyntaxKind.BaseKeyword)))
         {
             return true;
         }
@@ -143,16 +135,13 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
         while (current is not null)
         {
-            if (current is InvocationExpressionSyntax invocation 
-                && invocation.Expression is IdentifierNameSyntax name 
-                && name.Identifier.ValueText == "nameof")
+            if (current is InvocationExpressionSyntax invocation && invocation.Expression is IdentifierNameSyntax name && name.Identifier.ValueText == "nameof")
             {
                 return true;
             }
 
             // Stop at statement boundaries to avoid deep walks
-            if (current is StatementSyntax 
-                or MemberDeclarationSyntax)
+            if (current is StatementSyntax or MemberDeclarationSyntax)
             {
                 break;
             }
@@ -166,16 +155,14 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
     private static bool IsMemberAccessOnOtherInstance(IdentifierNameSyntax identifier)
     {
         // Check if this identifier is the 'Name' part of a MemberAccessExpression (e.g. "other.Name")
-        if (identifier.Parent is not MemberAccessExpressionSyntax memberAccess 
-            || memberAccess.Name != identifier)
+        if (identifier.Parent is not MemberAccessExpressionSyntax memberAccess || memberAccess.Name != identifier)
         {
             return false;
         }
 
         // If the expression on the left (Expression) is NOT 'this' or 'base' (explicitly or implicitly),
         // then it's access on a different object.
-        if (memberAccess.Expression is not ThisExpressionSyntax 
-            and not BaseExpressionSyntax)
+        if (memberAccess.Expression is not ThisExpressionSyntax and not BaseExpressionSyntax)
         {
             // It's something like "obj.Prop". 
             // CAUTION: If "obj" itself resolves to an instance field of 'this', checking "obj" in the loop
@@ -188,10 +175,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
     private static bool IsInstanceMember(ISymbol symbol, INamedTypeSymbol containingType)
     {
-        if (symbol.Kind is not (SymbolKind.Field 
-            or SymbolKind.Property 
-            or SymbolKind.Method 
-            or SymbolKind.Event))
+        if (symbol.Kind is not (SymbolKind.Field or SymbolKind.Property or SymbolKind.Method or SymbolKind.Event))
         {
             return false;
         }
@@ -223,10 +207,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
         {
             SyntaxKind kind = node.Modifiers[i].Kind();
 
-            if (kind is SyntaxKind.PublicKeyword 
-                or SyntaxKind.PrivateKeyword 
-                or SyntaxKind.ProtectedKeyword 
-                or SyntaxKind.InternalKeyword)
+            if (kind is SyntaxKind.PublicKeyword or SyntaxKind.PrivateKeyword or SyntaxKind.ProtectedKeyword or SyntaxKind.InternalKeyword)
             {
                 insertIndex = i;
             }

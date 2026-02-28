@@ -61,10 +61,9 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
     {
         // Annotate the root of a call chain if it is currently multi-line.
         // This allows 'Preserve' mode to restore the layout after NormalizeWhitespace flattens it.
-        return node.Parent is not MemberAccessExpressionSyntax 
-            && !IsSingleLine(node)
-            ? base.VisitMemberAccessExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(MultiLineCallChainAnnotationKind))
-            : base.VisitMemberAccessExpression(node);
+        return node.Parent is MemberAccessExpressionSyntax || IsSingleLine(node)
+            ? base.VisitMemberAccessExpression(node)
+            : base.VisitMemberAccessExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(MultiLineCallChainAnnotationKind));
     }
 
     public override SyntaxNode? VisitInitializerExpression(InitializerExpressionSyntax node)

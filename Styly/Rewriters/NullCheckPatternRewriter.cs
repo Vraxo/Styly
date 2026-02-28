@@ -11,8 +11,7 @@ internal class NullCheckPatternRewriter : CSharpSyntaxRewriter
         bool isEquals = node.IsKind(SyntaxKind.EqualsExpression);
         bool isNotEquals = node.IsKind(SyntaxKind.NotEqualsExpression);
 
-        if (!isEquals 
-            && !isNotEquals)
+        if (!isEquals && !isNotEquals)
         {
             return base.VisitBinaryExpression(node);
         }

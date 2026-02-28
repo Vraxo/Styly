@@ -83,26 +83,12 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
     private bool ShouldGap<T>(T curr, StatementSyntax? prevStmt, StatementSyntax? currStmt)
         where T : SyntaxNode
     {
-        return (_options.EmptyLineBeforeControlFlow 
-            && IsControlFlow(currStmt)) 
-            || (_options.EmptyLineAfterControlFlow 
-            && IsControlFlow(prevStmt)) 
-            || (_options.EmptyLineAroundMultiLineExpression 
-            && (IsHeavyExpression(prevStmt) 
-            || IsHeavyExpression(currStmt))) 
-            || curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
+        return (_options.EmptyLineBeforeControlFlow && IsControlFlow(currStmt)) || (_options.EmptyLineAfterControlFlow && IsControlFlow(prevStmt)) || (_options.EmptyLineAroundMultiLineExpression && (IsHeavyExpression(prevStmt) || IsHeavyExpression(currStmt))) || curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
     }
 
     private static bool IsControlFlow(StatementSyntax? s)
     {
-        return s is IfStatementSyntax 
-            or SwitchStatementSyntax 
-            or WhileStatementSyntax 
-            or DoStatementSyntax 
-            or ForStatementSyntax 
-            or ForEachStatementSyntax 
-            or TryStatementSyntax 
-            or LocalFunctionStatementSyntax;
+        return s is IfStatementSyntax or SwitchStatementSyntax or WhileStatementSyntax or DoStatementSyntax or ForStatementSyntax or ForEachStatementSyntax or TryStatementSyntax or LocalFunctionStatementSyntax;
     }
 
     private static bool IsHeavyExpression(StatementSyntax? s)

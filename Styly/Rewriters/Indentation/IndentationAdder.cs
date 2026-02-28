@@ -39,8 +39,7 @@ internal class IndentationAdder : CSharpSyntaxRewriter
 
             // We just added a newline. We need to add indentation now.
             // Check if the NEXT trivia in the original list is whitespace.
-            if (i + 1 < originalTrivia.Count
-                && originalTrivia[i + 1].IsKind(SyntaxKind.WhitespaceTrivia))
+            if (i + 1 < originalTrivia.Count && originalTrivia[i + 1].IsKind(SyntaxKind.WhitespaceTrivia))
             {
                 // The next trivia is whitespace (existing indentation).
                 // We combine our indent with it.

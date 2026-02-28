@@ -53,22 +53,19 @@ internal class ExplicitTypeToVarRewriter : CSharpSyntaxRewriter
         TypeInfo initializerTypeInfo = _semanticModel.GetTypeInfo(variable.Initializer.Value);
         ITypeSymbol? initializerType = initializerTypeInfo.Type;
         // If we can't resolve types, we can't safely change to var
-        if (typeSymbol is null 
-            || typeSymbol.TypeKind == TypeKind.Error)
+        if (typeSymbol is null || typeSymbol.TypeKind == TypeKind.Error)
         {
             return base.VisitLocalDeclarationStatement(node);
         }
 
         // If assigning null (without cast), var is illegal: var x = null; // Error
-        if (initializerType is null 
-            && variable.Initializer.Value.IsKind(SyntaxKind.NullLiteralExpression))
+        if (initializerType is null && variable.Initializer.Value.IsKind(SyntaxKind.NullLiteralExpression))
         {
             return base.VisitLocalDeclarationStatement(node);
         }
 
         // Determine if we should replace based on the strategy
-        bool shouldReplace = _option == UseVarOption.Always 
-            || IsApparent(variable.Initializer.Value);
+        bool shouldReplace = _option == UseVarOption.Always || IsApparent(variable.Initializer.Value);
 
         if (shouldReplace)
         {
@@ -104,8 +101,7 @@ internal class ExplicitTypeToVarRewriter : CSharpSyntaxRewriter
         }
 
         // 4. Binary Expression using 'as': x as Customer
-        if (expression is BinaryExpressionSyntax binary 
-            && binary.IsKind(SyntaxKind.AsExpression))
+        if (expression is BinaryExpressionSyntax binary && binary.IsKind(SyntaxKind.AsExpression))
         {
             return true;
         }

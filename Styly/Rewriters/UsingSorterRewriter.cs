@@ -61,7 +61,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
     private static SyntaxList<UsingDirectiveSyntax> ProcessUsings(SyntaxList<UsingDirectiveSyntax> usings)
     {
         // 1. Sort the list
-        List<UsingDirectiveSyntax> sortedList = usings.ToList();
+        List<UsingDirectiveSyntax> sortedList = [ ..usings ];
 
         if (sortedList.Count > 1)
         {
@@ -115,8 +115,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
         for (int i = trailing.Count - 1; i >= 0; i--)
         {
-            if (!trailing[i].IsKind(SyntaxKind.WhitespaceTrivia) 
-                && !trailing[i].IsKind(SyntaxKind.EndOfLineTrivia))
+            if (!trailing[i].IsKind(SyntaxKind.WhitespaceTrivia) && !trailing[i].IsKind(SyntaxKind.EndOfLineTrivia))
             {
                 lastIndexToKeep = i;
                 break;

@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Styly.Configuration;
 using Styly.Rewriters;
 using Styly.Rewriters.Initializer;
+using Styly.Rewriters.LogicalExpression;
 
 namespace Styly.Core;
 
@@ -39,8 +40,7 @@ public static class CodeFormatter
 
         IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
             .Split(Path.PathSeparator)
-            .Where(path => !string.IsNullOrEmpty(path) 
-            && File.Exists(path))
+            .Where(path => !string.IsNullOrEmpty(path) && File.Exists(path))
             .Select(path => MetadataReference.CreateFromFile(path));
 
         Project project = workspace.AddProject("ScriptProject", LanguageNames.CSharp).WithMetadataReferences(references);

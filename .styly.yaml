@@ -14,7 +14,7 @@ Format:
   Ternary:
     Style: MultiLine
   LogicalExpressions:
-    Style: MultiLine
+    Style: Preserve
   RawStrings:
     PreferRawForMultiline: true
   Spacing:

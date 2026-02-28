@@ -35,23 +35,17 @@ internal class TokenSpacingCleanupRewriter : CSharpSyntaxRewriter
 
     private static bool IsUnwantedSpaceAfterBrace(SyntaxToken prev, SyntaxToken current)
     {
-        return IsBraceFollowedByCloserOrSeparator(prev, current) 
-            && !AreSeparatedByNewline(prev, current);
+        return IsBraceFollowedByCloserOrSeparator(prev, current) && !AreSeparatedByNewline(prev, current);
     }
 
     private static bool IsBraceFollowedByCloserOrSeparator(SyntaxToken prev, SyntaxToken current)
     {
-        return prev.IsKind(SyntaxKind.CloseBraceToken) 
-            && (current.IsKind(SyntaxKind.CloseParenToken) 
-            || current.IsKind(SyntaxKind.CloseBracketToken) 
-            || current.IsKind(SyntaxKind.SemicolonToken) 
-            || current.IsKind(SyntaxKind.CommaToken));
+        return prev.IsKind(SyntaxKind.CloseBraceToken) && (current.IsKind(SyntaxKind.CloseParenToken) || current.IsKind(SyntaxKind.CloseBracketToken) || current.IsKind(SyntaxKind.SemicolonToken) || current.IsKind(SyntaxKind.CommaToken));
     }
 
     private static bool AreSeparatedByNewline(SyntaxToken prev, SyntaxToken current)
     {
-        return prev.TrailingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)) 
-            || current.LeadingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
+        return prev.TrailingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)) || current.LeadingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
     }
 
     private static SyntaxToken RemoveLeadingWhitespace(SyntaxToken token)
