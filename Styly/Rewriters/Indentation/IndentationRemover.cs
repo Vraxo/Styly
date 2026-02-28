@@ -6,6 +6,7 @@ namespace Styly.Rewriters.Indentation;
 internal class IndentationRemover : CSharpSyntaxRewriter
 {
     private const int IndentSize = 4;
+
     public override SyntaxToken VisitToken(SyntaxToken token)
     {
         if (!token.HasLeadingTrivia)

@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Styly.Configuration;
 
-namespace Styly.Rewriters;
+namespace Styly.Rewriters.LogicalExpression;
 
 internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
 {
@@ -16,7 +16,7 @@ internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitBinaryExpression(BinaryExpressionSyntax node)
     {
-        if (_options.Style != LogicalExpressionStyle.MultiLine 
+        if (_options.Style != LogicalExpressionStyle.MultiLine
             || !IsLogical(node.Kind()))
         {
             return base.VisitBinaryExpression(node);
@@ -44,20 +44,20 @@ internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
     private static SyntaxNode FormatChain(SyntaxNode root)
     {
         SyntaxTriviaList parentIndent = GetParentIndentation(root);
-        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
+        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string(' ', IndentSize)));
         // Delegate the actual token wrapping to the specialized visitor
         return new LogicalTriviaApplier(itemIndent).Visit(root);
     }
 
     private static bool IsLogical(SyntaxKind kind)
     {
-        return kind is SyntaxKind.LogicalAndExpression 
+        return kind is SyntaxKind.LogicalAndExpression
             or SyntaxKind.LogicalOrExpression;
     }
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax
             or MemberDeclarationSyntax);
 
         if (container is null)

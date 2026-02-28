@@ -56,7 +56,7 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
     private static SyntaxNode FormatMultiLine(MemberAccessExpressionSyntax node)
     {
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
-        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
+        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string(' ', IndentSize)));
         SyntaxTrivia newline = SyntaxFactory.CarriageReturnLineFeed;
 
         ExpressionSyntax wrapped = WrapChainRecursive(node, itemIndent, newline);
@@ -136,7 +136,7 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax
             or MemberDeclarationSyntax);
 
         if (container is null)
