@@ -20,30 +20,19 @@ public static class CliInstaller
             Console.WriteLine($"Application directory: {exeDir}");
 
             const EnvironmentVariableTarget scope = EnvironmentVariableTarget.User;
-            string pathVar = Environment.GetEnvironmentVariable("PATH", scope) ?? string.Empty;
+
+            string pathVar = Environment.GetEnvironmentVariable("PATH", scope)
+                ?? string.Empty;
+
             string[] paths = pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
 
             if (paths.Contains(exeDir, StringComparer.OrdinalIgnoreCase))
             {
-                ConsoleColor originalColor = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("The application directory is already in your PATH.");
-                Console.ForegroundColor = originalColor;
+                PrintAlreadyInstalled();
                 return;
             }
 
-            string newPath = string.IsNullOrEmpty(pathVar)
-                ? exeDir
-                : $"{pathVar}{Path.PathSeparator}{exeDir}";
-
-            Environment.SetEnvironmentVariable("PATH", newPath, scope);
-
-            WriteSuccess("""
-
-                        Successfully added the application directory to your user PATH.
-            """);
-
-            WriteSuccess("Please restart your terminal session for the changes to take effect.");
+            Install(exeDir, scope, pathVar);
         }
         catch (Exception ex)
         {
@@ -51,10 +40,42 @@ public static class CliInstaller
         }
     }
 
+    private static void Install(string exeDir, EnvironmentVariableTarget scope, string pathVar)
+    {
+        string newPath = GetNewPath(exeDir, pathVar);
+
+        Environment.SetEnvironmentVariable("PATH", newPath, scope);
+
+        WriteSuccess("""
+
+                        Successfully added the application directory to your user PATH.
+            """);
+
+        WriteSuccess("Please restart your terminal session for the changes to take effect.");
+    }
+
+    private static string GetNewPath(string exeDir, string pathVar)
+    {
+        return string.IsNullOrEmpty(pathVar)
+            ? exeDir
+            : $"{pathVar}{Path.PathSeparator}{exeDir}";
+    }
+
+    private static void PrintAlreadyInstalled()
+    {
+        ConsoleColor originalColor = Console.ForegroundColor;
+        Console.ForegroundColor = ConsoleColor.Yellow;
+
+        Console.WriteLine("The application directory is already in your PATH.");
+
+        Console.ForegroundColor = originalColor;
+    }
+
     private static void WriteError(string message)
     {
         ConsoleColor originalColor = Console.ForegroundColor;
         Console.ForegroundColor = ConsoleColor.Red;
+
         Console.Error.WriteLine(message);
         Console.ForegroundColor = originalColor;
     }
@@ -63,6 +84,7 @@ public static class CliInstaller
     {
         ConsoleColor originalColor = Console.ForegroundColor;
         Console.ForegroundColor = ConsoleColor.Green;
+
         Console.WriteLine(message);
         Console.ForegroundColor = originalColor;
     }

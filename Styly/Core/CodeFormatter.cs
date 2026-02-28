@@ -38,7 +38,7 @@ public static class CodeFormatter
     {
         using AdhocWorkspace workspace = new();
 
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+        IEnumerable<PortableExecutableReference> references = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
             .Split(Path.PathSeparator)
             .Where(path => !string.IsNullOrEmpty(path) && File.Exists(path))
             .Select(path => MetadataReference.CreateFromFile(path));
@@ -73,73 +73,85 @@ public static class CodeFormatter
 
     private static async Task<Document> ApplySemanticRewritersAsync(Document document, FormatOptions options)
     {
-        async Task<(SemanticModel, SyntaxNode)> GetCtx()
-        {
-            return (await document.GetSemanticModelAsync() ?? throw new Exception(), await document.GetSyntaxRootAsync() ?? throw new Exception());
-        }
-
         if (options.Variables?.UseVar is not null)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
-
-            SyntaxNode newRoot = options.Variables.UseVar == UseVarOption.Never
-                ? new VarToExplicitTypeRewriter(model).Visit(root)
-                : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
+            (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
+            SyntaxNode newRoot = GetNewRoot(options, model, root);
 
             document = document.WithSyntaxRoot(newRoot);
         }
 
         if (options.Collections?.PreferExpression == true)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
+            (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
             document = document.WithSyntaxRoot(new CollectionExpressionRewriter(model).Visit(root));
         }
 
         if (options.Modifiers.MakeStaticWhenPossible)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
+            (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
             document = document.WithSyntaxRoot(new StaticModifierRewriter(model).Visit(root));
         }
 
         if (options.Optimization.PreferLengthCountOverAny)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
+            (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
             document = document.WithSyntaxRoot(new EnumerableAnyRewriter(model).Visit(root));
         }
 
         if (options.Optimization.PreferNullPatterns)
         {
-            (SemanticModel _, SyntaxNode? root) = await GetCtx();
+            (SemanticModel _, SyntaxNode? root) = await GetContext(document);
             document = document.WithSyntaxRoot(new NullCheckPatternRewriter().Visit(root));
         }
 
         if (options.Usings.RemoveUnused)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
-
-            IEnumerable<UsingDirectiveSyntax> unused = model
-                .GetDiagnostics()
-                .Where(d =>
-            {
-                return d.Id == "CS8019";
-            })
-                .Select(d => root.FindNode(d.Location.SourceSpan))
-                .OfType<UsingDirectiveSyntax>();
-
-            if (!unused.Any())
-            {
-                return document;
-            }
-
-            document = document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
-
-            return document;
+            return await NameMe(ref document);
         }
 
         return document;
     }
 
-    private static SyntaxNode ApplySyntacticRewriters(SyntaxNode root, FormatOptions options)
+    private static SyntaxNode GetNewRoot(FormatOptions options, SemanticModel model, SyntaxNode root)
+    {
+        return options.Variables.UseVar == UseVarOption.Never
+            ? new VarToExplicitTypeRewriter(model).Visit(root)
+            : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
+    }
+
+    private static async Task<Document> NameMe(ref Document document)
+    {
+        (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
+
+        IEnumerable<UsingDirectiveSyntax> unused = model
+            .GetDiagnostics()
+            .Where(d => d.Id == "CS8019")
+            .Select(d => root.FindNode(d.Location.SourceSpan))
+            .OfType<UsingDirectiveSyntax>();
+
+        if (!unused.Any())
+        {
+            return document;
+        }
+
+        document = document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
+
+        return document;
+    }
+
+    private static async Task<(SemanticModel, SyntaxNode)> GetContext(Document document)
+    {
+        SemanticModel semanticModel = await document.GetSemanticModelAsync()
+            ?? throw new Exception();
+
+        SyntaxNode syntaxNode = await document.GetSyntaxRootAsync()
+            ?? throw new Exception();
+
+        return (semanticModel, syntaxNode);
+    }
+
+    private static SyntaxNode? ApplySyntacticRewriters(SyntaxNode root, FormatOptions options)
     {
         root = new NamespaceRewriter(options.Namespace).Visit(root);
         root = new InitializerRewriter(options.Initializers).Visit(root);

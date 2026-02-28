@@ -14,14 +14,19 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
         bool isSystemA = nameA.StartsWith("System");
         bool isSystemB = nameB.StartsWith("System");
 
-        return isSystemA != isSystemB
-            ? isSystemA ? -1 : 1
-            : string.Compare(nameA, nameB, StringComparison.Ordinal);
+        if (isSystemA == isSystemB)
+        {
+            return string.Compare(nameA, nameB, StringComparison.Ordinal);
+        }
+
+        return isSystemA
+            ? -1
+            : 1;
     }
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)
     {
-        CompilationUnitSyntax visited = (CompilationUnitSyntax)base.VisitCompilationUnit(node)!;
+        var visited = (CompilationUnitSyntax)base.VisitCompilationUnit(node)!;
 
         if (!visited.Usings.Any())
         {
@@ -34,7 +39,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        NamespaceDeclarationSyntax visited = (NamespaceDeclarationSyntax)base.VisitNamespaceDeclaration(node)!;
+        var visited = (NamespaceDeclarationSyntax)base.VisitNamespaceDeclaration(node)!;
 
         if (!visited.Usings.Any())
         {
@@ -47,7 +52,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitFileScopedNamespaceDeclaration(FileScopedNamespaceDeclarationSyntax node)
     {
-        FileScopedNamespaceDeclarationSyntax visited = (FileScopedNamespaceDeclarationSyntax)base.VisitFileScopedNamespaceDeclaration(node)!;
+        var visited = (FileScopedNamespaceDeclarationSyntax)base.VisitFileScopedNamespaceDeclaration(node)!;
 
         if (!visited.Usings.Any())
         {
@@ -61,7 +66,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
     private static SyntaxList<UsingDirectiveSyntax> ProcessUsings(SyntaxList<UsingDirectiveSyntax> usings)
     {
         // 1. Sort the list
-        List<UsingDirectiveSyntax> sortedList = [ ..usings ];
+        List<UsingDirectiveSyntax> sortedList = [.. usings];
 
         if (sortedList.Count > 1)
         {
@@ -70,7 +75,10 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
         // 2. Preserve File Header (Leading trivia of the *original* first item)
         // We attach it to the new first item.
-        SyntaxTriviaList originalFirstTrivia = usings.First().GetLeadingTrivia();
+        SyntaxTriviaList originalFirstTrivia = usings
+            .First()
+            .GetLeadingTrivia();
+
         sortedList[0] = sortedList[0].WithLeadingTrivia(originalFirstTrivia);
         // 3. Normalize spacing for all items
         for (int i = 0; i < sortedList.Count; i++)
@@ -103,6 +111,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
     {
         SyntaxTriviaList leading = u.GetLeadingTrivia();
         IEnumerable<SyntaxTrivia> newLeading = leading.SkipWhile(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
+
         return u.WithLeadingTrivia(SyntaxFactory.TriviaList(newLeading));
     }
 
@@ -115,11 +124,13 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
         for (int i = trailing.Count - 1; i >= 0; i--)
         {
-            if (!trailing[i].IsKind(SyntaxKind.WhitespaceTrivia) && !trailing[i].IsKind(SyntaxKind.EndOfLineTrivia))
+            if (trailing[i].IsKind(SyntaxKind.WhitespaceTrivia) || trailing[i].IsKind(SyntaxKind.EndOfLineTrivia))
             {
-                lastIndexToKeep = i;
-                break;
+                continue;
             }
+
+            lastIndexToKeep = i;
+            break;
         }
 
         SyntaxTriviaList newTrivia = SyntaxFactory.TriviaList(trailing.Take(lastIndexToKeep + 1));
