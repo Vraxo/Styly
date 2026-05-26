@@ -11,7 +11,7 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
     {
         _semanticModel = semanticModel;
     }
-
+// FUCK
     private bool IsCollectionLike(ExpressionSyntax node)
     {
         TypeInfo typeInfo = _semanticModel.GetTypeInfo(node);
