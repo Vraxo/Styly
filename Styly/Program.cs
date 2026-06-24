@@ -1,20 +1,22 @@
-using System.CommandLine;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Styly.Configuration;
-using YamlDotNet.Serialization;
+using Styly.Core;
+using System.CommandLine;
+using System.Text.Json;
+using Tomlyn;
 
-namespace Styly.Core;
+namespace Styly;
 
 public class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        RootCommand rootCommand = new("A .NET code formatter. Automatically finds .styly.yaml and processes C# files.");
+        RootCommand rootCommand = new("A .NET code formatter. Automatically finds .styly.toml and processes C# files.");
 
         rootCommand.SetHandler(HandleProjectFormatting);
-        // Standalone 'format' command for single files
+
         Argument<FileInfo> fileArgument = new Argument<FileInfo>("file", "The C# file to format.").ExistingOnly();
         Option<NamespaceFormat> namespaceOption = new("--namespace-format", () => NamespaceFormat.File, "Namespace format override.");
         Command formatCommand = new("format", "Formats a single file without project context.");
@@ -27,7 +29,7 @@ public class Program
         }), fileArgument, namespaceOption);
 
         rootCommand.AddCommand(formatCommand);
-        // Path installation helper
+
         Command installPathCommand = new("install-path", "Adds the tool to the user's PATH.");
         installPathCommand.SetHandler(CliInstaller.InstallPath);
         rootCommand.AddCommand(installPathCommand);
@@ -42,13 +44,13 @@ public class Program
 
         if (configPath is null)
         {
-            WriteError("Error: Configuration file '.styly.yaml' not found.");
+            WriteError("Error: Configuration file '.styly.toml' not found.");
             return;
         }
 
         StylyConfig config = LoadConfig(configPath);
         string baseDir = Path.GetDirectoryName(configPath)!;
-        // 1. Find all matching files
+
         bool flowControl = FindAllMatchingFiles(config, baseDir, out List<string> filePaths);
 
         if (!flowControl)
@@ -56,11 +58,10 @@ public class Program
             return;
         }
 
-        // 2. Build the Semantic Workspace
         Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
         using AdhocWorkspace workspace = CreateSemanticWorkspace();
         Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
-        // 3. Add files to the project
+
         project = await AddFilesToTheProject(config, filePaths, project);
     }
 
@@ -79,7 +80,7 @@ public class Program
 
         config.Exclude.ForEach(p => matcher.AddExclude(p));
 
-        filePaths = [ ..matcher.GetResultsInFullPath(baseDir) ];
+        filePaths = [.. matcher.GetResultsInFullPath(baseDir)];
 
         if (filePaths.Count == 0)
         {
@@ -103,14 +104,12 @@ public class Program
             documentIds.Add(document.Id, path);
         }
 
-        // 4. Process each document
         Console.WriteLine("Formatting files...");
 
         foreach (KeyValuePair<DocumentId, string> entry in documentIds)
         {
             Document doc = project.GetDocument(entry.Key)!;
             await ProcessDocument(doc, config.Format, entry.Value);
-            // Refresh project state to maintain semantic accuracy across rewrites
             project = doc.Project.Solution.GetProject(project.Id)!;
         }
 
@@ -121,8 +120,7 @@ public class Program
     private static AdhocWorkspace CreateSemanticWorkspace()
     {
         AdhocWorkspace workspace = new();
-        // Feed the workspace the same DLLs this tool is running on (.NET 10 Core)
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+        IEnumerable<PortableExecutableReference> references = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
             .Split(Path.PathSeparator)
             .Where(path => !string.IsNullOrEmpty(path) && File.Exists(path))
             .Select(path => MetadataReference.CreateFromFile(path));
@@ -177,8 +175,12 @@ public class Program
 
     private static StylyConfig LoadConfig(string path)
     {
-        string yaml = File.ReadAllText(path);
-        return new DeserializerBuilder().Build().Deserialize<StylyConfig>(yaml);
+        string toml = File.ReadAllText(path);
+        TomlSerializerOptions options = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+        return TomlSerializer.Deserialize<StylyConfig>(toml, options) ?? new StylyConfig();
     }
 
     private static string? FindConfigFile(string dir)
@@ -187,18 +189,11 @@ public class Program
 
         while (current is not null)
         {
-            string p1 = Path.Combine(current.FullName, ".styly.yaml");
+            string path = Path.Combine(current.FullName, ".styly.toml");
 
-            if (File.Exists(p1))
+            if (File.Exists(path))
             {
-                return p1;
-            }
-
-            string p2 = Path.Combine(current.FullName, ".styly.yml");
-
-            if (File.Exists(p2))
-            {
-                return p2;
+                return path;
             }
 
             current = current.Parent;

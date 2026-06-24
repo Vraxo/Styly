@@ -5,7 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<IsPackable>false</IsPackable>
-		<!-- Disable the strict MSBuildLocator copy check in tests -->
+		<!-- Disable strict MSBuildLocator copy check in tests -->
 		<DisableMSBuildAssemblyCopyCheck>true</DisableMSBuildAssemblyCopyCheck>
 	</PropertyGroup>
 

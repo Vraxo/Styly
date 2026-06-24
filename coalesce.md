@@ -140,7 +140,6 @@ namespace Styly.Configuration;
 
 public class CollectionsOptions
 {
-    // YamlDotNet maps 'preferExpression' from the config to this property via the project's CamelCaseNamingConvention.
     public bool PreferExpression { get; set; }
 }
 ```
@@ -150,8 +149,6 @@ public class CollectionsOptions
 ### `Styly\Configuration\FormatOptions.cs`
 
 ```csharp
-using Styly.Core;
-
 namespace Styly.Configuration;
 
 public class FormatOptions
@@ -178,18 +175,26 @@ public class FormatOptions
 ```csharp
 namespace Styly.Configuration;
 
-public enum InitializerStyle
-{
-    Preserve,
-    SingleLine,
-    MultiLine
-}
-
 public class InitializerOptions
 {
     public InitializerStyle AnonymousType { get; set; } = InitializerStyle.Preserve;
     public InitializerStyle Object { get; set; } = InitializerStyle.Preserve;
     public InitializerStyle Collection { get; set; } = InitializerStyle.Preserve;
+}
+```
+
+---
+
+### `Styly\Configuration\InitializerStyle.cs`
+
+```csharp
+namespace Styly.Configuration;
+
+public enum InitializerStyle
+{
+    Preserve,
+    SingleLine,
+    MultiLine
 }
 ```
 
@@ -231,6 +236,20 @@ namespace Styly.Configuration;
 public class ModifiersOptions
 {
     public bool MakeStaticWhenPossible { get; set; }
+}
+```
+
+---
+
+### `Styly\Configuration\NamespaceFormat.cs`
+
+```csharp
+namespace Styly.Configuration;
+
+public enum NamespaceFormat
+{
+    File,
+    Block
 }
 ```
 
@@ -322,16 +341,25 @@ public enum TernaryStyle
 
 ---
 
-### `Styly\Configuration\UsingsOptions.cs`
+### `Styly\Configuration\UseVarOption.cs`
 
 ```csharp
 namespace Styly.Configuration;
 
-public enum UsingSortOrder
+public enum UseVarOption
 {
-    None,
-    Alphabetical
+    WhenApparent,
+    Always,
+    Never
 }
+```
+
+---
+
+### `Styly\Configuration\UsingsOptions.cs`
+
+```csharp
+namespace Styly.Configuration;
 
 public class UsingsOptions
 {
@@ -342,26 +370,24 @@ public class UsingsOptions
 
 ---
 
-### `Styly\Configuration\VariablesOptions.cs`
+### `Styly\Configuration\UsingSortOrder.cs`
 
 ```csharp
 namespace Styly.Configuration;
 
-public enum UseVarOption
+public enum UsingSortOrder
 {
-    /// <summary>
-    /// Only use var when the type is apparent from the right-hand side.
-    /// </summary>
-    WhenApparent,
-    /// <summary>
-    /// Always prefer using var where possible.
-    /// </summary>
-    Always,
-    /// <summary>
-    /// Never use var; always use explicit types.
-    /// </summary>
-    Never
+    None,
+    Alphabetical
 }
+```
+
+---
+
+### `Styly\Configuration\VariablesOptions.cs`
+
+```csharp
+namespace Styly.Configuration;
 
 public class VariablesOptions
 {
@@ -396,30 +422,19 @@ public static class CliInstaller
             Console.WriteLine($"Application directory: {exeDir}");
 
             const EnvironmentVariableTarget scope = EnvironmentVariableTarget.User;
-            string pathVar = Environment.GetEnvironmentVariable("PATH", scope) ?? string.Empty;
+
+            string pathVar = Environment.GetEnvironmentVariable("PATH", scope)
+                ?? string.Empty;
+
             string[] paths = pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
 
             if (paths.Contains(exeDir, StringComparer.OrdinalIgnoreCase))
             {
-                ConsoleColor originalColor = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("The application directory is already in your PATH.");
-                Console.ForegroundColor = originalColor;
+                PrintAlreadyInstalled();
                 return;
             }
 
-            string newPath = string.IsNullOrEmpty(pathVar)
-                ? exeDir
-                : $"{pathVar}{Path.PathSeparator}{exeDir}";
-
-            Environment.SetEnvironmentVariable("PATH", newPath, scope);
-
-            WriteSuccess("""
-
-                        Successfully added the application directory to your user PATH.
-            """);
-
-            WriteSuccess("Please restart your terminal session for the changes to take effect.");
+            Install(exeDir, scope, pathVar);
         }
         catch (Exception ex)
         {
@@ -427,10 +442,42 @@ public static class CliInstaller
         }
     }
 
+    private static void Install(string exeDir, EnvironmentVariableTarget scope, string pathVar)
+    {
+        string newPath = GetNewPath(exeDir, pathVar);
+
+        Environment.SetEnvironmentVariable("PATH", newPath, scope);
+
+        WriteSuccess("""
+
+                        Successfully added the application directory to your user PATH.
+            """);
+
+        WriteSuccess("Please restart your terminal session for the changes to take effect.");
+    }
+
+    private static string GetNewPath(string exeDir, string pathVar)
+    {
+        return string.IsNullOrEmpty(pathVar)
+            ? exeDir
+            : $"{pathVar}{Path.PathSeparator}{exeDir}";
+    }
+
+    private static void PrintAlreadyInstalled()
+    {
+        ConsoleColor originalColor = Console.ForegroundColor;
+        Console.ForegroundColor = ConsoleColor.Yellow;
+
+        Console.WriteLine("The application directory is already in your PATH.");
+
+        Console.ForegroundColor = originalColor;
+    }
+
     private static void WriteError(string message)
     {
         ConsoleColor originalColor = Console.ForegroundColor;
         Console.ForegroundColor = ConsoleColor.Red;
+
         Console.Error.WriteLine(message);
         Console.ForegroundColor = originalColor;
     }
@@ -439,6 +486,7 @@ public static class CliInstaller
     {
         ConsoleColor originalColor = Console.ForegroundColor;
         Console.ForegroundColor = ConsoleColor.Green;
+
         Console.WriteLine(message);
         Console.ForegroundColor = originalColor;
     }
@@ -456,6 +504,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Styly.Configuration;
 using Styly.Rewriters;
 using Styly.Rewriters.Initializer;
+using Styly.Rewriters.LogicalExpression;
 
 namespace Styly.Core;
 
@@ -489,8 +538,10 @@ public static class CodeFormatter
     {
         using AdhocWorkspace workspace = new();
 
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Where(path => !string.IsNullOrEmpty(path) 
-            && File.Exists(path)).Select(path => MetadataReference.CreateFromFile(path));
+        IEnumerable<PortableExecutableReference> references = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+            .Split(Path.PathSeparator)
+            .Where(path => !string.IsNullOrEmpty(path) && File.Exists(path))
+            .Select(path => MetadataReference.CreateFromFile(path));
 
         Project project = workspace.AddProject("ScriptProject", LanguageNames.CSharp).WithMetadataReferences(references);
 
@@ -522,61 +573,85 @@ public static class CodeFormatter
 
     private static async Task<Document> ApplySemanticRewritersAsync(Document document, FormatOptions options)
     {
-        async Task<(SemanticModel, SyntaxNode)> GetCtx()
-        {
-            return (await document.GetSemanticModelAsync() ?? throw new Exception(), await document.GetSyntaxRootAsync() ?? throw new Exception());
-        }
-
         if (options.Variables?.UseVar is not null)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
-
-            SyntaxNode newRoot = options.Variables.UseVar == UseVarOption.Never
-                ? new VarToExplicitTypeRewriter(model).Visit(root)
-                : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
+            (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
+            SyntaxNode newRoot = GetNewRoot(options, model, root);
 
             document = document.WithSyntaxRoot(newRoot);
         }
 
         if (options.Collections?.PreferExpression == true)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
+            (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
             document = document.WithSyntaxRoot(new CollectionExpressionRewriter(model).Visit(root));
         }
 
         if (options.Modifiers.MakeStaticWhenPossible)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
+            (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
             document = document.WithSyntaxRoot(new StaticModifierRewriter(model).Visit(root));
         }
 
         if (options.Optimization.PreferLengthCountOverAny)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
+            (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
             document = document.WithSyntaxRoot(new EnumerableAnyRewriter(model).Visit(root));
         }
 
         if (options.Optimization.PreferNullPatterns)
         {
-            (SemanticModel _, SyntaxNode? root) = await GetCtx();
+            (SemanticModel _, SyntaxNode? root) = await GetContext(document);
             document = document.WithSyntaxRoot(new NullCheckPatternRewriter().Visit(root));
         }
 
         if (options.Usings.RemoveUnused)
         {
-            (SemanticModel? model, SyntaxNode? root) = await GetCtx();
-            IEnumerable<UsingDirectiveSyntax> unused = model.GetDiagnostics().Where(d => d.Id == "CS8019").Select(d => root.FindNode(d.Location.SourceSpan)).OfType<UsingDirectiveSyntax>();
-
-            if (unused.Any())
-            {
-                document = document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
-            }
+            return await NameMe(ref document);
         }
 
         return document;
     }
 
-    private static SyntaxNode ApplySyntacticRewriters(SyntaxNode root, FormatOptions options)
+    private static SyntaxNode GetNewRoot(FormatOptions options, SemanticModel model, SyntaxNode root)
+    {
+        return options.Variables.UseVar == UseVarOption.Never
+            ? new VarToExplicitTypeRewriter(model).Visit(root)
+            : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
+    }
+
+    private static async Task<Document> NameMe(ref Document document)
+    {
+        (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
+
+        IEnumerable<UsingDirectiveSyntax> unused = model
+            .GetDiagnostics()
+            .Where(d => d.Id == "CS8019")
+            .Select(d => root.FindNode(d.Location.SourceSpan))
+            .OfType<UsingDirectiveSyntax>();
+
+        if (!unused.Any())
+        {
+            return document;
+        }
+
+        document = document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
+
+        return document;
+    }
+
+    private static async Task<(SemanticModel, SyntaxNode)> GetContext(Document document)
+    {
+        SemanticModel semanticModel = await document.GetSemanticModelAsync()
+            ?? throw new Exception();
+
+        SyntaxNode syntaxNode = await document.GetSyntaxRootAsync()
+            ?? throw new Exception();
+
+        return (semanticModel, syntaxNode);
+    }
+
+    private static SyntaxNode? ApplySyntacticRewriters(SyntaxNode root, FormatOptions options)
     {
         root = new NamespaceRewriter(options.Namespace).Visit(root);
         root = new InitializerRewriter(options.Initializers).Visit(root);
@@ -596,20 +671,6 @@ public static class CodeFormatter
         root = new TrailingTriviaTrimmer().Visit(root);
         return new TokenSpacingCleanupRewriter().Visit(root)!;
     }
-}
-```
-
----
-
-### `Styly\Core\NamespaceFormat.cs`
-
-```csharp
-namespace Styly.Core;
-
-public enum NamespaceFormat
-{
-    File,
-    Block
 }
 ```
 
@@ -669,6 +730,23 @@ public class Program
         StylyConfig config = LoadConfig(configPath);
         string baseDir = Path.GetDirectoryName(configPath)!;
         // 1. Find all matching files
+        bool flowControl = FindAllMatchingFiles(config, baseDir, out List<string> filePaths);
+
+        if (!flowControl)
+        {
+            return;
+        }
+
+        // 2. Build the Semantic Workspace
+        Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
+        using AdhocWorkspace workspace = CreateSemanticWorkspace();
+        Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
+        // 3. Add files to the project
+        project = await AddFilesToTheProject(config, filePaths, project);
+    }
+
+    private static bool FindAllMatchingFiles(StylyConfig config, string baseDir, out List<string> filePaths)
+    {
         Matcher matcher = new();
 
         if (config.Include.Count == 0)
@@ -682,26 +760,27 @@ public class Program
 
         config.Exclude.ForEach(p => matcher.AddExclude(p));
 
-        List<string> filePaths = matcher.GetResultsInFullPath(baseDir).ToList();
+        filePaths = [ ..matcher.GetResultsInFullPath(baseDir) ];
 
         if (filePaths.Count == 0)
         {
             Console.WriteLine("No files matched the inclusion patterns.");
-            return;
+            return false;
         }
 
-        // 2. Build the Semantic Workspace
-        Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
-        using AdhocWorkspace workspace = CreateSemanticWorkspace();
-        Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
-        // 3. Add files to the project
-        Dictionary<DocumentId, string> documentIds = new();
+        return true;
+    }
+
+    private static async Task<Project> AddFilesToTheProject(StylyConfig config, List<string> filePaths, Project project)
+    {
+        Dictionary<DocumentId, string> documentIds = [];
 
         foreach (string path in filePaths)
         {
             SourceText sourceText = SourceText.From(await File.ReadAllTextAsync(path));
             Document document = project.AddDocument(Path.GetFileName(path), sourceText, filePath: path);
             project = document.Project;
+
             documentIds.Add(document.Id, path);
         }
 
@@ -717,14 +796,17 @@ public class Program
         }
 
         Console.WriteLine("Done.");
+        return project;
     }
 
     private static AdhocWorkspace CreateSemanticWorkspace()
     {
         AdhocWorkspace workspace = new();
         // Feed the workspace the same DLLs this tool is running on (.NET 10 Core)
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "").Split(Path.PathSeparator).Where(path => !string.IsNullOrEmpty(path) 
-            && File.Exists(path)).Select(path => MetadataReference.CreateFromFile(path));
+        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+            .Split(Path.PathSeparator)
+            .Where(path => !string.IsNullOrEmpty(path) && File.Exists(path))
+            .Select(path => MetadataReference.CreateFromFile(path));
 
         _ = workspace.AddProject("StylyContext", LanguageNames.CSharp).WithMetadataReferences(references);
 
@@ -831,7 +913,6 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
 {
     private readonly CallChainOptions _options;
     private const int IndentSize = 4;
-
     public CallChainRewriter(CallChainOptions options)
     {
         _options = options;
@@ -839,7 +920,6 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
     {
-        // For any mode, only process the root of a call chain (not intermediate parts of a larger chain)
         if (node.Parent is MemberAccessExpressionSyntax)
         {
             return base.VisitMemberAccessExpression(node);
@@ -847,31 +927,32 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
 
         if (_options.Style == CallChainStyle.Preserve)
         {
-            // In Preserve mode, do not modify the node at all.
-            // Return the original node without visiting children to keep trivia intact.
-            return node;
+            SyntaxNode syntaxNode = node.HasAnnotations(LayoutAnnotator.MultiLineCallChainAnnotationKind)
+                ? FormatMultiLine(node)
+                : node;
+
+            return (SyntaxNode? )syntaxNode;
         }
 
-        // Process non-chained expressions normally
         if (!IsChained(node))
         {
             return base.VisitMemberAccessExpression(node);
         }
 
-        // Apply formatting rules only for non-preserve modes on chained expressions
-        return _options.Style == CallChainStyle.MultiLine ? FormatMultiLine(node) : FormatSingleLine(node);
+        return (SyntaxNode? )GetExpressionSyntax(node);
+    }
+
+    private ExpressionSyntax GetExpressionSyntax(MemberAccessExpressionSyntax node)
+    {
+        return _options.Style == CallChainStyle.MultiLine
+            ? FormatMultiLine(node)
+            : FormatSingleLine(node);
     }
 
     private static bool IsChained(MemberAccessExpressionSyntax node)
     {
-        // A chain is defined as a sequence of member accesses and invocations.
-        // We count the "links" in the chain.
-        // Example: obj.Prop.Method().Next
-        // Links: Prop, Method(), Next.
-
         int count = 1;
 
-        // If the access is invoked (e.g. .Method()), the invocation counts as a link.
         if (node.Parent is InvocationExpressionSyntax)
         {
             count++;
@@ -885,28 +966,26 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
             {
                 count++;
                 current = memberAccess.Expression;
+                continue;
             }
-            else if (current is InvocationExpressionSyntax invocation)
+
+            if (current is InvocationExpressionSyntax invocation)
             {
                 count++;
                 current = invocation.Expression;
+                continue;
             }
-            else
-            {
-                break;
-            }
+
+            break;
         }
 
-        // We consider it a chain if there are at least 2 links.
-        // 1 link: obj.Property (Single access, not a chain)
-        // 2 links: obj.Method() or obj.Property1.Property2
         return count >= 2;
     }
 
-    private static SyntaxNode FormatMultiLine(MemberAccessExpressionSyntax node)
+    private static ExpressionSyntax FormatMultiLine(MemberAccessExpressionSyntax node)
     {
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
-        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string(' ', IndentSize)));
+        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
         SyntaxTrivia newline = SyntaxFactory.CarriageReturnLineFeed;
 
         ExpressionSyntax wrapped = WrapChainRecursive(node, itemIndent, newline);
@@ -916,94 +995,110 @@ internal class CallChainRewriter : CSharpSyntaxRewriter
 
     private static ExpressionSyntax WrapChainRecursive(ExpressionSyntax node, SyntaxTriviaList indent, SyntaxTrivia newline)
     {
-        // If the current node is an invocation, we need to wrap its expression part (the member access)
         if (node is InvocationExpressionSyntax invocation)
         {
-            // Recursively wrap the expression part of the invocation
-            ExpressionSyntax wrappedExpression = WrapChainRecursive(invocation.Expression, indent, newline);
-
-            // Return the invocation with the newly wrapped expression part
-            return SyntaxFactory.InvocationExpression(
-                wrappedExpression,
-                invocation.ArgumentList
-            );
+            return NameMeToo(indent, newline, invocation);
         }
 
-        // If the current node is a member access, we continue the wrapping process
-        if (node is MemberAccessExpressionSyntax memberAccess)
+        if (node is not MemberAccessExpressionSyntax memberAccess)
         {
-            // Recursively wrap the inner expression part of this member access
-            ExpressionSyntax wrappedInner = WrapChainRecursive(memberAccess.Expression, indent, newline);
-
-            // Create the dot token with leading newline and indent
-            SyntaxToken dotToken = SyntaxFactory.Token(SyntaxKind.DotToken)
-                .WithLeadingTrivia(SyntaxFactory.TriviaList(newline).AddRange(indent));
-
-            // Get the name without its original leading trivia to avoid duplication
-            SimpleNameSyntax name = memberAccess.Name.WithoutLeadingTrivia();
-
-            return SyntaxFactory.MemberAccessExpression(
-                memberAccess.Kind(),
-                wrappedInner,
-                dotToken,
-                name);
+            return node.WithTrailingTrivia(StripTrailingNewlines(node.GetTrailingTrivia()));
         }
 
-        // Base case: if the node is just an identifier or a literal (e.g., `obj` in `obj.Prop`),
-        // return it as is, but remove trailing trivia to prevent duplication when re-assembled.
-        return node.WithoutTrailingTrivia();
+        return NameMeAsap(indent, newline, memberAccess);
     }
 
-    private static SyntaxNode FormatSingleLine(MemberAccessExpressionSyntax node)
+    private static ExpressionSyntax NameMeToo(SyntaxTriviaList indent, SyntaxTrivia newline, InvocationExpressionSyntax invocation)
     {
-        return FlattenChain(node).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+        ExpressionSyntax wrappedExpression = WrapChainRecursive(invocation.Expression, indent, newline);
+
+        return SyntaxFactory
+            .InvocationExpression(wrappedExpression, invocation.ArgumentList)
+            .WithTrailingTrivia(StripTrailingNewlines(invocation.GetTrailingTrivia()));
+    }
+
+    private static MemberAccessExpressionSyntax NameMeAsap(SyntaxTriviaList indent, SyntaxTrivia newline, MemberAccessExpressionSyntax memberAccess)
+    {
+        ExpressionSyntax wrappedInner = WrapChainRecursive(memberAccess.Expression, indent, newline);
+        SyntaxToken dotToken = GetDotToken(indent, newline);
+
+        SimpleNameSyntax name = memberAccess.Name.WithoutLeadingTrivia();
+        name = name.WithTrailingTrivia(StripTrailingNewlines(name.GetTrailingTrivia()));
+
+        return SyntaxFactory.MemberAccessExpression(memberAccess.Kind(), wrappedInner, dotToken, name);
+    }
+
+    private static SyntaxToken GetDotToken(SyntaxTriviaList indent, SyntaxTrivia newline)
+    {
+        return SyntaxFactory
+            .Token(SyntaxKind.DotToken)
+            .WithLeadingTrivia(SyntaxFactory.TriviaList(newline).AddRange(indent));
+    }
+
+    private static SyntaxTriviaList StripTrailingNewlines(SyntaxTriviaList trivia)
+    {
+        return SyntaxFactory.TriviaList(trivia.Where(t => !t.IsKind(SyntaxKind.EndOfLineTrivia)));
+    }
+
+    private static ExpressionSyntax FormatSingleLine(MemberAccessExpressionSyntax node)
+    {
+        return FlattenChain(node)
+            .WithLeadingTrivia(node.GetLeadingTrivia())
+            .WithTrailingTrivia(node.GetTrailingTrivia());
     }
 
     private static ExpressionSyntax FlattenChain(ExpressionSyntax node)
     {
         if (node is InvocationExpressionSyntax invocation)
         {
-            return SyntaxFactory.InvocationExpression(
-                FlattenChain(invocation.Expression),
-                invocation.ArgumentList);
+            return SyntaxFactory.InvocationExpression(FlattenChain(invocation.Expression), invocation.ArgumentList);
         }
 
-        if (node is MemberAccessExpressionSyntax memberAccess)
+        if (node is not MemberAccessExpressionSyntax memberAccess)
         {
-            ExpressionSyntax expression = FlattenChain(memberAccess.Expression);
-
-            SyntaxToken dotToken = SyntaxFactory.Token(SyntaxKind.DotToken)
-                .WithLeadingTrivia(SyntaxFactory.TriviaList())
-                .WithTrailingTrivia(SyntaxFactory.TriviaList());
-
-            SimpleNameSyntax name = memberAccess.Name.WithoutLeadingTrivia().WithoutTrailingTrivia();
-
-            return SyntaxFactory.MemberAccessExpression(
-                memberAccess.Kind(),
-                expression,
-                dotToken,
-                name).WithoutLeadingTrivia().WithoutTrailingTrivia();
+            return node.WithoutTrailingTrivia();
         }
 
-        return node.WithoutTrailingTrivia();
+        ExpressionSyntax expression = FlattenChain(memberAccess.Expression);
+        SyntaxToken dotToken = MakeDotToken();
+
+        SimpleNameSyntax name = memberAccess
+            .Name
+            .WithoutLeadingTrivia()
+            .WithoutTrailingTrivia();
+
+        return SyntaxFactory
+            .MemberAccessExpression(memberAccess.Kind(), expression, dotToken, name)
+            .WithoutLeadingTrivia()
+            .WithoutTrailingTrivia();
+    }
+
+    private static SyntaxToken MakeDotToken()
+    {
+        return SyntaxFactory
+            .Token(SyntaxKind.DotToken)
+            .WithLeadingTrivia(SyntaxFactory.TriviaList())
+            .WithTrailingTrivia(SyntaxFactory.TriviaList());
     }
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
-
-        if (container is not null)
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n =>
         {
-            SyntaxTriviaList leading = container.GetLeadingTrivia();
-            SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
+            return n is StatementSyntax or MemberDeclarationSyntax;
+        });
 
-            if (!lastWhitespace.IsKind(SyntaxKind.None))
-            {
-                return SyntaxFactory.TriviaList(lastWhitespace);
-            }
+        if (container is null)
+        {
+            return SyntaxFactory.TriviaList();
         }
 
-        return SyntaxFactory.TriviaList();
+        SyntaxTriviaList leading = container.GetLeadingTrivia();
+        SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
+
+        return !lastWhitespace.IsKind(SyntaxKind.None)
+            ? SyntaxFactory.TriviaList(lastWhitespace)
+            : SyntaxFactory.TriviaList();
     }
 }
 ```
@@ -1026,14 +1121,13 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
     {
         _semanticModel = semanticModel;
     }
-
+// FUCK
     private bool IsCollectionLike(ExpressionSyntax node)
     {
         TypeInfo typeInfo = _semanticModel.GetTypeInfo(node);
         ITypeSymbol? type = typeInfo.ConvertedType;
 
-        if (type is null 
-            || type.TypeKind == TypeKind.Error)
+        if (type is null || type.TypeKind == TypeKind.Error)
         {
             return false;
         }
@@ -1051,16 +1145,14 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
         }
 
         // Check if it's a generic collection.
-        return type.AllInterfaces.Any(i => i.IsGenericType 
-            && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
+        return type.AllInterfaces.Any(i => i.IsGenericType && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
     }
 
     private static CollectionExpressionSyntax? CreateCollectionExpression(InitializerExpressionSyntax? initializer, SyntaxNode originalNode)
     {
         CollectionExpressionSyntax newExpression;
 
-        if (initializer is null 
-            || initializer.Expressions.Count == 0)
+        if (initializer is null || initializer.Expressions.Count == 0)
         {
             // Empty collection: []
             newExpression = SyntaxFactory.CollectionExpression();
@@ -1086,8 +1178,7 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
     public override SyntaxNode? VisitObjectCreationExpression(ObjectCreationExpressionSyntax node)
     {
         // Must have an initializer `{ ... }` or be parameterless `()`
-        if (node.ArgumentList is not null 
-            && node.ArgumentList.Arguments.Any())
+        if (node.ArgumentList is not null && node.ArgumentList.Arguments.Any())
         {
             return base.VisitObjectCreationExpression(node);
         }
@@ -1109,26 +1200,41 @@ internal class CollectionExpressionRewriter : CSharpSyntaxRewriter
             return CreateCollectionExpression(node.Initializer, node);
         }
 
-        if (node.Type.RankSpecifiers.Count != 1 
-            || node.Type.RankSpecifiers[0].Sizes.Count != 1 
-            || node.Type.RankSpecifiers[0].Sizes[0] is not LiteralExpressionSyntax literal 
-            || literal.Token.ValueText != "0")
+        if (NameThisMethodAsap(node))
         {
             // Cannot convert things like `new int[5]` which are not initializers
             return base.VisitArrayCreationExpression(node);
         }
 
-        CollectionExpressionSyntax emptyCollection = SyntaxFactory.CollectionExpression().WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+        return GetEmptyCollection(node);
+    }
 
-        return emptyCollection;
+    private static CollectionExpressionSyntax GetEmptyCollection(ArrayCreationExpressionSyntax node)
+    {
+        return SyntaxFactory
+            .CollectionExpression()
+            .WithLeadingTrivia(node.GetLeadingTrivia())
+            .WithTrailingTrivia(node.GetTrailingTrivia());
+    }
+
+    private static bool NameThisMethodAsap(ArrayCreationExpressionSyntax node)
+    {
+        return node.Type.RankSpecifiers.Count != 1 || node.Type.RankSpecifiers[0].Sizes.Count != 1 || node.Type.RankSpecifiers[0].Sizes[0] is not LiteralExpressionSyntax literal || literal.Token.ValueText != "0";
     }
 
     public override SyntaxNode? VisitImplicitObjectCreationExpression(ImplicitObjectCreationExpressionSyntax node)
     {
-        // new() { ... } or new()
-        return node.ArgumentList.Arguments.Any()
-            ? base.VisitImplicitObjectCreationExpression(node)
-            : !IsCollectionLike(node) ? base.VisitImplicitObjectCreationExpression(node) : CreateCollectionExpression(node.Initializer, node);
+        if (node.ArgumentList.Arguments.Any())
+        {
+            return base.VisitImplicitObjectCreationExpression(node);
+        }
+
+        if (IsCollectionLike(node))
+        {
+            return CreateCollectionExpression(node.Initializer, node);
+        }
+
+        return base.VisitImplicitObjectCreationExpression(node);
     }
 }
 ```
@@ -1154,37 +1260,35 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
     {
-        if (node.Expression is MemberAccessExpressionSyntax memberAccess 
-            && memberAccess.Name.Identifier.ValueText == "Any" 
-            && node.ArgumentList.Arguments.Count == 0)
+        if (node.Expression is not MemberAccessExpressionSyntax memberAccess || memberAccess.Name.Identifier.ValueText != "Any" || node.ArgumentList.Arguments.Count != 0)
         {
-            if (IsLinqAny(node))
-            {
-                TypeInfo typeInfo = _semanticModel.GetTypeInfo(memberAccess.Expression);
-
-                if (typeInfo.Type is not null)
-                {
-                    string? propertyName = GetLengthOrCountProperty(typeInfo.Type);
-
-                    if (propertyName is not null)
-                    {
-                        // Replace .Any() with .Count != 0
-                        return CreateCountComparison(memberAccess.Expression, propertyName);
-                    }
-                }
-            }
+            return base.VisitInvocationExpression(node);
         }
 
-        return base.VisitInvocationExpression(node);
+        if (!IsLinqAny(node))
+        {
+            return base.VisitInvocationExpression(node);
+        }
+
+        TypeInfo typeInfo = _semanticModel.GetTypeInfo(memberAccess.Expression);
+
+        if (typeInfo.Type is null)
+        {
+            return base.VisitInvocationExpression(node);
+        }
+
+        return GetLengthOrCountProperty(typeInfo.Type) switch
+        {
+            null => base.VisitInvocationExpression(node),
+            _ => CreateCountComparison(memberAccess.Expression, GetLengthOrCountProperty(typeInfo.Type))
+        };
     }
 
     private bool IsLinqAny(InvocationExpressionSyntax node)
     {
         SymbolInfo symbolInfo = _semanticModel.GetSymbolInfo(node);
 
-        return symbolInfo.Symbol is IMethodSymbol methodSymbol 
-            && methodSymbol.Name == "Any" 
-            && methodSymbol.ContainingType.ToDisplayString() == "System.Linq.Enumerable";
+        return symbolInfo.Symbol is IMethodSymbol methodSymbol && methodSymbol.Name == "Any" && methodSymbol.ContainingType.ToDisplayString() == "System.Linq.Enumerable";
     }
 
     private static string? GetLengthOrCountProperty(ITypeSymbol type)
@@ -1198,15 +1302,14 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
         // Check for explicit Count or Length properties on the type (e.g. List<T>, ICollection<T>)
         foreach (ISymbol member in type.GetMembers())
         {
-            if (member is IPropertySymbol prop 
-                && !prop.IsStatic 
-                && prop.Type.SpecialType == SpecialType.System_Int32)
+            if (member is not IPropertySymbol prop || prop.IsStatic || prop.Type.SpecialType != SpecialType.System_Int32)
             {
-                if (prop.Name is "Count" 
-                    or "Length")
-                {
-                    return prop.Name;
-                }
+                continue;
+            }
+
+            if (prop.Name is "Count" or "Length")
+            {
+                return prop.Name;
             }
         }
 
@@ -1218,7 +1321,13 @@ internal class EnumerableAnyRewriter : CSharpSyntaxRewriter
         // Generates: expression.Count != 0
         // We use NormalizeWhitespace() to ensure correct spacing around the operator (e.g. " != ")
         // instead of manually constructing trivia, which is less robust.
-        return SyntaxFactory.BinaryExpression(SyntaxKind.NotEqualsExpression, SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, expression, SyntaxFactory.IdentifierName(propertyName)), SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(0))).NormalizeWhitespace();
+        MemberAccessExpressionSyntax left = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, expression, SyntaxFactory.IdentifierName(propertyName));
+
+        LiteralExpressionSyntax right = SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(0));
+
+        return SyntaxFactory
+            .BinaryExpression(SyntaxKind.NotEqualsExpression, left, right)
+            .NormalizeWhitespace();
     }
 }
 ```
@@ -1283,22 +1392,19 @@ internal class ExplicitTypeToVarRewriter : CSharpSyntaxRewriter
         TypeInfo initializerTypeInfo = _semanticModel.GetTypeInfo(variable.Initializer.Value);
         ITypeSymbol? initializerType = initializerTypeInfo.Type;
         // If we can't resolve types, we can't safely change to var
-        if (typeSymbol is null 
-            || typeSymbol.TypeKind == TypeKind.Error)
+        if (typeSymbol is null || typeSymbol.TypeKind == TypeKind.Error)
         {
             return base.VisitLocalDeclarationStatement(node);
         }
 
         // If assigning null (without cast), var is illegal: var x = null; // Error
-        if (initializerType is null 
-            && variable.Initializer.Value.IsKind(SyntaxKind.NullLiteralExpression))
+        if (initializerType is null && variable.Initializer.Value.IsKind(SyntaxKind.NullLiteralExpression))
         {
             return base.VisitLocalDeclarationStatement(node);
         }
 
         // Determine if we should replace based on the strategy
-        bool shouldReplace = _option == UseVarOption.Always 
-            || IsApparent(variable.Initializer.Value);
+        bool shouldReplace = _option == UseVarOption.Always || IsApparent(variable.Initializer.Value);
 
         if (shouldReplace)
         {
@@ -1334,8 +1440,7 @@ internal class ExplicitTypeToVarRewriter : CSharpSyntaxRewriter
         }
 
         // 4. Binary Expression using 'as': x as Customer
-        if (expression is BinaryExpressionSyntax binary 
-            && binary.IsKind(SyntaxKind.AsExpression))
+        if (expression is BinaryExpressionSyntax binary && binary.IsKind(SyntaxKind.AsExpression))
         {
             return true;
         }
@@ -1367,13 +1472,13 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
 {
     public const string SingleLineAnnotationKind = "Styly_SingleLine";
     public const string PreserveBlankLineAnnotationKind = "Styly_PreserveBlankLine";
+    public const string MultiLineCallChainAnnotationKind = "Styly_MultiLineCallChain";
     private static bool IsSingleLine(SyntaxNode node)
     {
         FileLinePositionSpan lineSpan = node.GetLocation().GetLineSpan();
         return lineSpan.StartLinePosition.Line == lineSpan.EndLinePosition.Line;
     }
 
-    // --- Annotation Logic ---
     private static SyntaxList<T> AnnotateBlankLines<T>(SyntaxList<T> items)
         where T : SyntaxNode
     {
@@ -1388,8 +1493,7 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
         {
             T prev = items[i - 1];
             T curr = items[i];
-            // Check if there was originally a blank line between these nodes.
-            // We check the trivia between them (Trailing of prev + Leading of curr).
+
             if (HasBlankLineBetween(prev, curr))
             {
                 curr = curr.WithAdditionalAnnotations(new SyntaxAnnotation(PreserveBlankLineAnnotationKind));
@@ -1404,41 +1508,28 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
     private static bool HasBlankLineBetween(SyntaxNode prev, SyntaxNode curr)
     {
         int newlines = CountEndingNewlines(prev.GetTrailingTrivia()) + CountStartingNewlines(curr.GetLeadingTrivia());
-        // 2 newlines usually means one empty line in between.
         return newlines >= 2;
     }
 
     private static int CountEndingNewlines(SyntaxTriviaList trivia)
     {
-        int count = 0;
-
-        foreach (SyntaxTrivia t in trivia)
-        {
-            if (t.IsKind(SyntaxKind.EndOfLineTrivia))
-            {
-                count++;
-            }
-        }
-
-        return count;
+        return trivia.Count(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
     }
 
     private static int CountStartingNewlines(SyntaxTriviaList trivia)
     {
-        int count = 0;
-
-        foreach (SyntaxTrivia t in trivia)
-        {
-            if (t.IsKind(SyntaxKind.EndOfLineTrivia))
-            {
-                count++;
-            }
-        }
-
-        return count;
+        return trivia.Count(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
     }
 
-    // --- Visitor Overrides ---
+    public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+    {
+        // Annotate the root of a call chain if it is currently multi-line.
+        // This allows 'Preserve' mode to restore the layout after NormalizeWhitespace flattens it.
+        return node.Parent is MemberAccessExpressionSyntax || IsSingleLine(node)
+            ? base.VisitMemberAccessExpression(node)
+            : base.VisitMemberAccessExpression(node)!.WithAdditionalAnnotations(new SyntaxAnnotation(MultiLineCallChainAnnotationKind));
+    }
+
     public override SyntaxNode? VisitInitializerExpression(InitializerExpressionSyntax node)
     {
         return IsSingleLine(node)
@@ -1518,120 +1609,13 @@ internal class LayoutAnnotator : CSharpSyntaxRewriter
 
 ---
 
-### `Styly\Rewriters\LogicalExpressionRewriter.cs`
-
-```csharp
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Styly.Configuration;
-
-namespace Styly.Rewriters;
-
-internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
-{
-    private readonly LogicalExpressionOptions _options;
-    private const int IndentSize = 4;
-    public LogicalExpressionRewriter(LogicalExpressionOptions options)
-    {
-        _options = options;
-    }
-
-    public override SyntaxNode? VisitBinaryExpression(BinaryExpressionSyntax node)
-    {
-        if (_options.Style != LogicalExpressionStyle.MultiLine 
-            || !IsLogical(node.Kind()))
-        {
-            return base.VisitBinaryExpression(node);
-        }
-
-        // Only process from the root of a logical chain to avoid redundant work
-        return IsLogical(node.Parent?.Kind() ?? SyntaxKind.None)
-            ? base.VisitBinaryExpression(node)
-            : FormatChain(node);
-    }
-
-    public override SyntaxNode? VisitBinaryPattern(BinaryPatternSyntax node)
-    {
-        if (_options.Style != LogicalExpressionStyle.MultiLine)
-        {
-            return base.VisitBinaryPattern(node);
-        }
-
-        // Only process from the root of a pattern chain
-        return node.Parent is BinaryPatternSyntax
-            ? base.VisitBinaryPattern(node)
-            : FormatChain(node);
-    }
-
-    private static SyntaxNode FormatChain(SyntaxNode root)
-    {
-        SyntaxTriviaList parentIndent = GetParentIndentation(root);
-        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
-        // Delegate the actual token wrapping to the specialized visitor
-        return new LogicalTriviaApplier(itemIndent).Visit(root);
-    }
-
-    private static bool IsLogical(SyntaxKind kind)
-    {
-        return kind is SyntaxKind.LogicalAndExpression 
-            or SyntaxKind.LogicalOrExpression;
-    }
-
-    private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
-    {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
-            or MemberDeclarationSyntax);
-
-        if (container is not null)
-        {
-            SyntaxTriviaList leading = container.GetLeadingTrivia();
-            SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
-
-            if (!lastWhitespace.IsKind(SyntaxKind.None))
-            {
-                return SyntaxFactory.TriviaList(lastWhitespace);
-            }
-        }
-
-        return SyntaxFactory.TriviaList();
-    }
-
-    private class LogicalTriviaApplier : CSharpSyntaxRewriter
-    {
-        private readonly SyntaxTriviaList _indent;
-        private readonly SyntaxTrivia _newline = SyntaxFactory.CarriageReturnLineFeed;
-        public LogicalTriviaApplier(SyntaxTriviaList indent)
-        {
-            _indent = indent;
-        }
-
-        public override SyntaxToken VisitToken(SyntaxToken token)
-        {
-            bool isLogicalOperator = token.IsKind(SyntaxKind.AmpersandAmpersandToken) 
-                || token.IsKind(SyntaxKind.BarBarToken) 
-                || token.IsKind(SyntaxKind.AndKeyword) 
-                || token.IsKind(SyntaxKind.OrKeyword);
-            // If it's a logical operator within a binary expression or pattern, wrap it
-            return isLogicalOperator 
-                && (token.Parent is BinaryExpressionSyntax 
-                or BinaryPatternSyntax)
-                ? token.WithLeadingTrivia(SyntaxFactory.TriviaList(_newline).AddRange(_indent)).WithTrailingTrivia(SyntaxFactory.Space)
-                : base.VisitToken(token);
-        }
-    }
-}
-```
-
----
-
 ### `Styly\Rewriters\NamespaceRewriter.cs`
 
 ```csharp
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Styly.Core;
+using Styly.Configuration;
 using Styly.Rewriters.Indentation;
 
 namespace Styly.Rewriters;
@@ -1646,8 +1630,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        if (_format == NamespaceFormat.File 
-            && node.Parent is CompilationUnitSyntax)
+        if (_format == NamespaceFormat.File && node.Parent is CompilationUnitSyntax)
         {
             IndentationRemover indentationRemover = new();
             SyntaxList<MemberDeclarationSyntax> unindentedMembers = [];
@@ -1672,8 +1655,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             {
                 SyntaxTrivia trivia = trailingTrivia[i];
 
-                if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia) 
-                    && !trivia.IsKind(SyntaxKind.EndOfLineTrivia))
+                if (!trivia.IsKind(SyntaxKind.WhitespaceTrivia) && !trivia.IsKind(SyntaxKind.EndOfLineTrivia))
                 {
                     lastNonWhitespaceIndex = i;
                     break;
@@ -1718,8 +1700,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
             {
                 MemberDeclarationSyntax rewritten = (MemberDeclarationSyntax)indentationAdder.Visit(m);
 
-                if (!isFirstItemProcessed 
-                    && !indentedUsings.Any())
+                if (!isFirstItemProcessed && !indentedUsings.Any())
                 {
                     rewritten = FixFirstItemIndentation(rewritten);
                     isFirstItemProcessed = true;
@@ -1750,8 +1731,7 @@ internal class NamespaceRewriter : CSharpSyntaxRewriter
         SyntaxToken firstToken = node.GetFirstToken();
         SyntaxTriviaList leading = firstToken.LeadingTrivia;
         // Strip all initial newlines and whitespace to ensure the item sits flush after the brace's newline.
-        IEnumerable<SyntaxTrivia> content = leading.SkipWhile(t => t.IsKind(SyntaxKind.EndOfLineTrivia) 
-            || t.IsKind(SyntaxKind.WhitespaceTrivia));
+        IEnumerable<SyntaxTrivia> content = leading.SkipWhile(t => t.IsKind(SyntaxKind.EndOfLineTrivia) || t.IsKind(SyntaxKind.WhitespaceTrivia));
         // Force a single indentation level
         SyntaxTriviaList newTrivia = SyntaxFactory.TriviaList(SyntaxFactory.Whitespace("    "));
         newTrivia = newTrivia.AddRange(content);
@@ -1794,8 +1774,7 @@ internal class NullCheckPatternRewriter : CSharpSyntaxRewriter
         bool isEquals = node.IsKind(SyntaxKind.EqualsExpression);
         bool isNotEquals = node.IsKind(SyntaxKind.NotEqualsExpression);
 
-        if (!isEquals 
-            && !isNotEquals)
+        if (!isEquals && !isNotEquals)
         {
             return base.VisitBinaryExpression(node);
         }
@@ -1839,12 +1818,12 @@ internal class NullCheckPatternRewriter : CSharpSyntaxRewriter
 ### `Styly\Rewriters\RawStringRewriter.cs`
 
 ```csharp
-using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Styly.Configuration;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Styly.Rewriters;
 
@@ -1852,6 +1831,10 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 {
     private readonly RawStringsOptions _options;
     private const int IndentSize = 4;
+
+    [GeneratedRegex(@"\r?\n")]
+    private static partial Regex MyRegex1();
+
     public RawStringRewriter(RawStringsOptions options)
     {
         _options = options;
@@ -1859,64 +1842,89 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitLiteralExpression(LiteralExpressionSyntax node)
     {
-        if (!_options.PreferRawForMultiline 
-            || !node.IsKind(SyntaxKind.StringLiteralExpression))
+        if (!_options.PreferRawForMultiline || !node.IsKind(SyntaxKind.StringLiteralExpression))
         {
             return base.VisitLiteralExpression(node);
         }
 
         // CRITICAL: Do not process existing raw strings.
         // Re-processing raw strings changes their semantic value by baking in current indentation.
-        if (node.Token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken) 
-            || node.Token.IsKind(SyntaxKind.SingleLineRawStringLiteralToken))
+        if (IsRawString(node))
         {
             return base.VisitLiteralExpression(node);
         }
 
         string value = node.Token.ValueText;
         // Only convert if the string contains actual newline characters
-        return !value.Contains('\n') 
-            && !value.Contains('\r')
-            ? base.VisitLiteralExpression(node)
-            : ConvertToRawString(node, value);
+        return value.Contains('\n') || value.Contains('\r')
+            ? ConvertToRawString(node, value)
+            : base.VisitLiteralExpression(node);
     }
 
-    private static SyntaxNode ConvertToRawString(LiteralExpressionSyntax node, string value)
+    private static bool IsRawString(LiteralExpressionSyntax node)
+    {
+        return node.Token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken) || node.Token.IsKind(SyntaxKind.SingleLineRawStringLiteralToken);
+    }
+
+    private static LiteralExpressionSyntax ConvertToRawString(LiteralExpressionSyntax node, string value)
     {
         // 1. Determine delimiter depth (min 3 quotes)
-        int maxSequentialQuotes = GetMaxSequentialQuotes(value);
-        int quotesNeeded = Math.Max(3, maxSequentialQuotes + 1);
-        string delimiter = new('"', quotesNeeded);
+        string delimiter = GetDelimiter(value);
+
         // 2. Get statement indentation to align the delimiter
         SyntaxTriviaList parentIndent = GetParentIndentation(node);
         string indentStr = parentIndent.ToString();
-        string contentIndent = indentStr + new string (' ', IndentSize);
+        string contentIndent = indentStr + new string(' ', IndentSize);
+
         // 3. Construct the raw string block
         // The closing delimiter must be aligned with the parent statement.
         // The content lines are indented relative to that delimiter.
+        StringBuilder sb = GetRawStringBlock(value, delimiter, indentStr, contentIndent);
+
+        // 4. Parse the generated text into a valid RawStringLiteralToken
+        return GetRawStringLiteralToken(node, sb);
+    }
+
+    private static LiteralExpressionSyntax GetRawStringLiteralToken(LiteralExpressionSyntax node, StringBuilder sb)
+    {
+        SyntaxToken rawToken = SyntaxFactory.ParseToken(sb.ToString());
+
+        return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, rawToken)
+            .WithLeadingTrivia(node.GetLeadingTrivia())
+            .WithTrailingTrivia(node.GetTrailingTrivia());
+    }
+
+    private static StringBuilder GetRawStringBlock(string value, string delimiter, string indentStr, string contentIndent)
+    {
         string[] lines = MyRegex1().Split(value);
         StringBuilder sb = new();
-        _ = sb.AppendLine(delimiter);
+        sb.AppendLine(delimiter);
 
         foreach (string line in lines)
         {
             if (string.IsNullOrWhiteSpace(line))
             {
-                _ = sb.AppendLine();
+                sb.AppendLine();
+                continue;
             }
-            else
-            {
-                _ = sb.Append(contentIndent);
-                _ = sb.AppendLine(line);
-            }
+
+            sb.Append(contentIndent);
+            sb.AppendLine(line);
         }
 
-        _ = sb.Append(indentStr);
-        _ = sb.Append(delimiter);
-        // 4. Parse the generated text into a valid RawStringLiteralToken
-        SyntaxToken rawToken = SyntaxFactory.ParseToken(sb.ToString());
+        sb.Append(indentStr);
+        sb.Append(delimiter);
 
-        return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, rawToken).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+        return sb;
+    }
+
+    private static string GetDelimiter(string value)
+    {
+        int maxSequentialQuotes = GetMaxSequentialQuotes(value);
+        int quotesNeeded = int.Max(3, maxSequentialQuotes + 1);
+        string delimiter = new('"', quotesNeeded);
+
+        return delimiter;
     }
 
     private static int GetMaxSequentialQuotes(string text)
@@ -1942,25 +1950,23 @@ internal partial class RawStringRewriter : CSharpSyntaxRewriter
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
-            or MemberDeclarationSyntax);
+        var container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
 
-        if (container is not null)
+        if (container is null)
         {
-            SyntaxTriviaList leading = container.GetLeadingTrivia();
-            SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
-
-            if (!lastWhitespace.IsKind(SyntaxKind.None))
-            {
-                return SyntaxFactory.TriviaList(lastWhitespace);
-            }
+            return SyntaxFactory.TriviaList();
         }
 
-        return SyntaxFactory.TriviaList();
-    }
+        SyntaxTriviaList leading = container.GetLeadingTrivia();
+        SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
 
-    [GeneratedRegex(@"\r?\n")]
-    private static partial Regex MyRegex1();
+        if (lastWhitespace.IsKind(SyntaxKind.None))
+        {
+            return SyntaxFactory.TriviaList();
+        }
+
+        return SyntaxFactory.TriviaList(lastWhitespace);
+    }
 }
 ```
 
@@ -2020,16 +2026,9 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
-        return node.Body is null 
-            && node.ExpressionBody is null
+        return node.Body is null && node.ExpressionBody is null
             ? base.VisitMethodDeclaration(node)
-            : node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword) 
-            || m.IsKind(SyntaxKind.AbstractKeyword) 
-            || m.IsKind(SyntaxKind.VirtualKeyword) 
-            || m.IsKind(SyntaxKind.OverrideKeyword) 
-            || m.IsKind(SyntaxKind.NewKeyword) 
-            || m.IsKind(SyntaxKind.PartialKeyword)) ? base.VisitMethodDeclaration(node) : node.ExplicitInterfaceSpecifier is not null ? base.VisitMethodDeclaration(node) : AccessesInstanceData(node) 
-            || IsInterfaceImplementation(node) ? base.VisitMethodDeclaration(node) : MakeStatic(node);
+            : node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword) || m.IsKind(SyntaxKind.AbstractKeyword) || m.IsKind(SyntaxKind.VirtualKeyword) || m.IsKind(SyntaxKind.OverrideKeyword) || m.IsKind(SyntaxKind.NewKeyword) || m.IsKind(SyntaxKind.PartialKeyword)) ? base.VisitMethodDeclaration(node) : node.ExplicitInterfaceSpecifier is not null ? base.VisitMethodDeclaration(node) : AccessesInstanceData(node) || IsInterfaceImplementation(node) ? base.VisitMethodDeclaration(node) : MakeStatic(node);
     }
 
     private bool IsInterfaceImplementation(MethodDeclarationSyntax node)
@@ -2075,8 +2074,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
     {
         SyntaxNode body = (SyntaxNode? )method.Body ?? method.ExpressionBody!;
         // 1. Check for 'this' or 'base' keywords
-        if (body.DescendantTokens().Any(t => t.IsKind(SyntaxKind.ThisKeyword) 
-            || t.IsKind(SyntaxKind.BaseKeyword)))
+        if (body.DescendantTokens().Any(t => t.IsKind(SyntaxKind.ThisKeyword) || t.IsKind(SyntaxKind.BaseKeyword)))
         {
             return true;
         }
@@ -2149,16 +2147,13 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
         while (current is not null)
         {
-            if (current is InvocationExpressionSyntax invocation 
-                && invocation.Expression is IdentifierNameSyntax name 
-                && name.Identifier.ValueText == "nameof")
+            if (current is InvocationExpressionSyntax invocation && invocation.Expression is IdentifierNameSyntax name && name.Identifier.ValueText == "nameof")
             {
                 return true;
             }
 
             // Stop at statement boundaries to avoid deep walks
-            if (current is StatementSyntax 
-                or MemberDeclarationSyntax)
+            if (current is StatementSyntax or MemberDeclarationSyntax)
             {
                 break;
             }
@@ -2172,16 +2167,14 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
     private static bool IsMemberAccessOnOtherInstance(IdentifierNameSyntax identifier)
     {
         // Check if this identifier is the 'Name' part of a MemberAccessExpression (e.g. "other.Name")
-        if (identifier.Parent is not MemberAccessExpressionSyntax memberAccess 
-            || memberAccess.Name != identifier)
+        if (identifier.Parent is not MemberAccessExpressionSyntax memberAccess || memberAccess.Name != identifier)
         {
             return false;
         }
 
         // If the expression on the left (Expression) is NOT 'this' or 'base' (explicitly or implicitly),
         // then it's access on a different object.
-        if (memberAccess.Expression is not ThisExpressionSyntax 
-            and not BaseExpressionSyntax)
+        if (memberAccess.Expression is not ThisExpressionSyntax and not BaseExpressionSyntax)
         {
             // It's something like "obj.Prop". 
             // CAUTION: If "obj" itself resolves to an instance field of 'this', checking "obj" in the loop
@@ -2194,10 +2187,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
 
     private static bool IsInstanceMember(ISymbol symbol, INamedTypeSymbol containingType)
     {
-        if (symbol.Kind is not (SymbolKind.Field 
-            or SymbolKind.Property 
-            or SymbolKind.Method 
-            or SymbolKind.Event))
+        if (symbol.Kind is not (SymbolKind.Field or SymbolKind.Property or SymbolKind.Method or SymbolKind.Event))
         {
             return false;
         }
@@ -2229,10 +2219,7 @@ internal class StaticModifierRewriter : CSharpSyntaxRewriter
         {
             SyntaxKind kind = node.Modifiers[i].Kind();
 
-            if (kind is SyntaxKind.PublicKeyword 
-                or SyntaxKind.PrivateKeyword 
-                or SyntaxKind.ProtectedKeyword 
-                or SyntaxKind.InternalKeyword)
+            if (kind is SyntaxKind.PublicKeyword or SyntaxKind.PrivateKeyword or SyntaxKind.ProtectedKeyword or SyntaxKind.InternalKeyword)
             {
                 insertIndex = i;
             }
@@ -2298,16 +2285,17 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
     {
         node = EnsureUsingSeparator(node, node.Usings, node.Members, (n, m) => n.WithMembers(m));
 
-        if (!node.Usings.Any() 
-            && node.Members.Any())
+        if (node.Usings.Any() || !node.Members.Any())
         {
-            MemberDeclarationSyntax firstMember = node.Members[0];
-            var newFirstMember = SpacingUtility.EnsureBlankLine(node.SemicolonToken, firstMember);
+            return base.VisitFileScopedNamespaceDeclaration(node);
+        }
 
-            if (newFirstMember != firstMember)
-            {
-                node = node.WithMembers(node.Members.Replace(firstMember, newFirstMember));
-            }
+        MemberDeclarationSyntax firstMember = node.Members[0];
+        MemberDeclarationSyntax newFirstMember = SpacingUtility.EnsureBlankLine(node.SemicolonToken, firstMember);
+
+        if (newFirstMember != firstMember)
+        {
+            node = node.WithMembers(node.Members.Replace(firstMember, newFirstMember));
         }
 
         return base.VisitFileScopedNamespaceDeclaration(node);
@@ -2316,15 +2304,14 @@ internal class StructuralSpacingRewriter : CSharpSyntaxRewriter
     private static TNode EnsureUsingSeparator<TNode>(TNode node, SyntaxList<UsingDirectiveSyntax> usings, SyntaxList<MemberDeclarationSyntax> members, Func<TNode, SyntaxList<MemberDeclarationSyntax>, TNode> withMembers)
         where TNode : SyntaxNode
     {
-        if (!usings.Any() 
-            || !members.Any())
+        if (!usings.Any() || !members.Any())
         {
             return node;
         }
 
         UsingDirectiveSyntax lastUsing = usings.Last();
         MemberDeclarationSyntax firstMember = members.First();
-        var newFirstMember = SpacingUtility.EnsureBlankLine(lastUsing, firstMember);
+        MemberDeclarationSyntax newFirstMember = SpacingUtility.EnsureBlankLine(lastUsing, firstMember);
 
         return newFirstMember != firstMember
             ? withMembers(node, members.Replace(firstMember, newFirstMember))
@@ -2387,8 +2374,7 @@ internal class TernaryRewriter : CSharpSyntaxRewriter
 
     private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
-            or MemberDeclarationSyntax);
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
 
         if (container is not null)
         {
@@ -2427,7 +2413,7 @@ internal class TokenSpacingCleanupRewriter : CSharpSyntaxRewriter
 
     private static SyntaxNode CleanupTokenSpacing(SyntaxNode root)
     {
-        List<SyntaxToken> tokens = root.DescendantTokens().ToList();
+        List<SyntaxToken> tokens = [ ..root.DescendantTokens() ];
         Dictionary<SyntaxToken, SyntaxToken> replacements = [];
 
         for (int i = 1; i < tokens.Count; i++)
@@ -2448,23 +2434,17 @@ internal class TokenSpacingCleanupRewriter : CSharpSyntaxRewriter
 
     private static bool IsUnwantedSpaceAfterBrace(SyntaxToken prev, SyntaxToken current)
     {
-        return IsBraceFollowedByCloserOrSeparator(prev, current) 
-            && !AreSeparatedByNewline(prev, current);
+        return IsBraceFollowedByCloserOrSeparator(prev, current) && !AreSeparatedByNewline(prev, current);
     }
 
     private static bool IsBraceFollowedByCloserOrSeparator(SyntaxToken prev, SyntaxToken current)
     {
-        return prev.IsKind(SyntaxKind.CloseBraceToken) 
-            && (current.IsKind(SyntaxKind.CloseParenToken) 
-            || current.IsKind(SyntaxKind.CloseBracketToken) 
-            || current.IsKind(SyntaxKind.SemicolonToken) 
-            || current.IsKind(SyntaxKind.CommaToken));
+        return prev.IsKind(SyntaxKind.CloseBraceToken) && (current.IsKind(SyntaxKind.CloseParenToken) || current.IsKind(SyntaxKind.CloseBracketToken) || current.IsKind(SyntaxKind.SemicolonToken) || current.IsKind(SyntaxKind.CommaToken));
     }
 
     private static bool AreSeparatedByNewline(SyntaxToken prev, SyntaxToken current)
     {
-        return prev.TrailingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)) 
-            || current.LeadingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
+        return prev.TrailingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia)) || current.LeadingTrivia.Any(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
     }
 
     private static SyntaxToken RemoveLeadingWhitespace(SyntaxToken token)
@@ -2498,8 +2478,7 @@ public class TrailingTriviaTrimmer : CSharpSyntaxRewriter
     {
         SyntaxToken lastToken = node.GetLastToken();
 
-        if (lastToken.IsKind(SyntaxKind.None) 
-            || !lastToken.TrailingTrivia.Any())
+        if (lastToken.IsKind(SyntaxKind.None) || !lastToken.TrailingTrivia.Any())
         {
             return node;
         }
@@ -2520,10 +2499,12 @@ public class TrailingTriviaTrimmer : CSharpSyntaxRewriter
         {
             SyntaxTrivia trivia = trailingTrivia[i];
 
-            if (!IsWhitespaceOrNewline(trivia))
+            if (IsWhitespaceOrNewline(trivia))
             {
-                return i;
+                continue;
             }
+
+            return i;
         }
 
         return -1;
@@ -2531,8 +2512,7 @@ public class TrailingTriviaTrimmer : CSharpSyntaxRewriter
 
     private static bool IsWhitespaceOrNewline(SyntaxTrivia trivia)
     {
-        return trivia.IsKind(SyntaxKind.EndOfLineTrivia) 
-            || trivia.IsKind(SyntaxKind.WhitespaceTrivia);
+        return trivia.IsKind(SyntaxKind.EndOfLineTrivia) || trivia.IsKind(SyntaxKind.WhitespaceTrivia);
     }
 }
 ```
@@ -2558,14 +2538,19 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
         bool isSystemA = nameA.StartsWith("System");
         bool isSystemB = nameB.StartsWith("System");
 
-        return isSystemA != isSystemB
-            ? isSystemA ? -1 : 1
-            : string.Compare(nameA, nameB, StringComparison.Ordinal);
+        if (isSystemA == isSystemB)
+        {
+            return string.Compare(nameA, nameB, StringComparison.Ordinal);
+        }
+
+        return isSystemA
+            ? -1
+            : 1;
     }
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)
     {
-        CompilationUnitSyntax visited = (CompilationUnitSyntax)base.VisitCompilationUnit(node)!;
+        var visited = (CompilationUnitSyntax)base.VisitCompilationUnit(node)!;
 
         if (!visited.Usings.Any())
         {
@@ -2578,7 +2563,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        NamespaceDeclarationSyntax visited = (NamespaceDeclarationSyntax)base.VisitNamespaceDeclaration(node)!;
+        var visited = (NamespaceDeclarationSyntax)base.VisitNamespaceDeclaration(node)!;
 
         if (!visited.Usings.Any())
         {
@@ -2591,7 +2576,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitFileScopedNamespaceDeclaration(FileScopedNamespaceDeclarationSyntax node)
     {
-        FileScopedNamespaceDeclarationSyntax visited = (FileScopedNamespaceDeclarationSyntax)base.VisitFileScopedNamespaceDeclaration(node)!;
+        var visited = (FileScopedNamespaceDeclarationSyntax)base.VisitFileScopedNamespaceDeclaration(node)!;
 
         if (!visited.Usings.Any())
         {
@@ -2605,7 +2590,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
     private static SyntaxList<UsingDirectiveSyntax> ProcessUsings(SyntaxList<UsingDirectiveSyntax> usings)
     {
         // 1. Sort the list
-        List<UsingDirectiveSyntax> sortedList = usings.ToList();
+        List<UsingDirectiveSyntax> sortedList = [.. usings];
 
         if (sortedList.Count > 1)
         {
@@ -2614,7 +2599,10 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
         // 2. Preserve File Header (Leading trivia of the *original* first item)
         // We attach it to the new first item.
-        SyntaxTriviaList originalFirstTrivia = usings.First().GetLeadingTrivia();
+        SyntaxTriviaList originalFirstTrivia = usings
+            .First()
+            .GetLeadingTrivia();
+
         sortedList[0] = sortedList[0].WithLeadingTrivia(originalFirstTrivia);
         // 3. Normalize spacing for all items
         for (int i = 0; i < sortedList.Count; i++)
@@ -2647,6 +2635,7 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
     {
         SyntaxTriviaList leading = u.GetLeadingTrivia();
         IEnumerable<SyntaxTrivia> newLeading = leading.SkipWhile(t => t.IsKind(SyntaxKind.EndOfLineTrivia));
+
         return u.WithLeadingTrivia(SyntaxFactory.TriviaList(newLeading));
     }
 
@@ -2659,12 +2648,13 @@ internal class UsingSorterRewriter : CSharpSyntaxRewriter
 
         for (int i = trailing.Count - 1; i >= 0; i--)
         {
-            if (!trailing[i].IsKind(SyntaxKind.WhitespaceTrivia) 
-                && !trailing[i].IsKind(SyntaxKind.EndOfLineTrivia))
+            if (trailing[i].IsKind(SyntaxKind.WhitespaceTrivia) || trailing[i].IsKind(SyntaxKind.EndOfLineTrivia))
             {
-                lastIndexToKeep = i;
-                break;
+                continue;
             }
+
+            lastIndexToKeep = i;
+            break;
         }
 
         SyntaxTriviaList newTrivia = SyntaxFactory.TriviaList(trailing.Take(lastIndexToKeep + 1));
@@ -2713,10 +2703,7 @@ internal class VarToExplicitTypeRewriter : CSharpSyntaxRewriter
         // 1. Type symbol is not resolved (null or Error).
         // 2. Type is void (cannot be a variable type).
         // 3. Type is Anonymous (e.g. new { A = 1 }), as it has no explicit type name.
-        if (typeSymbol is null 
-            || typeSymbol.TypeKind == TypeKind.Error 
-            || typeSymbol.SpecialType == SpecialType.System_Void 
-            || typeSymbol.IsAnonymousType)
+        if (typeSymbol is null || typeSymbol.TypeKind == TypeKind.Error || typeSymbol.SpecialType == SpecialType.System_Void || typeSymbol.IsAnonymousType)
         {
             return base.VisitLocalDeclarationStatement(node);
         }
@@ -2753,9 +2740,12 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
 
     public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node)
     {
-        SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(node.Members, m => m is GlobalStatementSyntax g
-            ? g.Statement
-            : null);
+        SyntaxList<MemberDeclarationSyntax> newMembers = ProcessList(node.Members, m =>
+        {
+            return m is GlobalStatementSyntax g
+                ? g.Statement
+                : null;
+        });
 
         return base.VisitCompilationUnit(node.WithMembers(newMembers));
     }
@@ -2792,7 +2782,7 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
             return items;
         }
 
-        List<T> newItems = new List<T> { items[0] };
+        List<T> newItems = [ items[0] ];
 
         for (int i = 1; i < items.Count; i++)
         {
@@ -2802,14 +2792,7 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
             StatementSyntax? prevStmt = getStatement(prev);
             StatementSyntax? currStmt = getStatement(curr);
 
-            bool shouldGap = (_options.EmptyLineBeforeControlFlow 
-                && IsControlFlow(currStmt)) 
-                || (_options.EmptyLineAfterControlFlow 
-                && IsControlFlow(prevStmt)) 
-                || (_options.EmptyLineAroundMultiLineExpression 
-                && (IsHeavyExpression(prevStmt) 
-                || IsHeavyExpression(currStmt))) 
-                || curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
+            bool shouldGap = ShouldGap(curr, prevStmt, currStmt);
 
             if (shouldGap)
             {
@@ -2822,16 +2805,15 @@ internal class VerticalRhythmRewriter : CSharpSyntaxRewriter
         return SyntaxFactory.List(newItems);
     }
 
+    private bool ShouldGap<T>(T curr, StatementSyntax? prevStmt, StatementSyntax? currStmt)
+        where T : SyntaxNode
+    {
+        return (_options.EmptyLineBeforeControlFlow && IsControlFlow(currStmt)) || (_options.EmptyLineAfterControlFlow && IsControlFlow(prevStmt)) || (_options.EmptyLineAroundMultiLineExpression && (IsHeavyExpression(prevStmt) || IsHeavyExpression(currStmt))) || curr.HasAnnotations(LayoutAnnotator.PreserveBlankLineAnnotationKind);
+    }
+
     private static bool IsControlFlow(StatementSyntax? s)
     {
-        return s is IfStatementSyntax 
-            or SwitchStatementSyntax 
-            or WhileStatementSyntax 
-            or DoStatementSyntax 
-            or ForStatementSyntax 
-            or ForEachStatementSyntax 
-            or TryStatementSyntax 
-            or LocalFunctionStatementSyntax;
+        return s is IfStatementSyntax or SwitchStatementSyntax or WhileStatementSyntax or DoStatementSyntax or ForStatementSyntax or ForEachStatementSyntax or TryStatementSyntax or LocalFunctionStatementSyntax;
     }
 
     private static bool IsHeavyExpression(StatementSyntax? s)
@@ -2891,28 +2873,29 @@ internal class IndentationAdder : CSharpSyntaxRewriter
             SyntaxTrivia current = originalTrivia[i];
             newTrivia.Add(current);
 
-            if (current.IsKind(SyntaxKind.EndOfLineTrivia))
+            if (!current.IsKind(SyntaxKind.EndOfLineTrivia))
             {
-                // We just added a newline. We need to add indentation now.
-                // Check if the NEXT trivia in the original list is whitespace.
-                if (i + 1 < originalTrivia.Count 
-                    && originalTrivia[i + 1].IsKind(SyntaxKind.WhitespaceTrivia))
-                {
-                    // The next trivia is whitespace (existing indentation).
-                    // We combine our indent with it.
-                    SyntaxTrivia existingWhitespace = originalTrivia[i + 1];
-                    string combinedIndent = existingWhitespace.ToString() + Indent;
+                continue;
+            }
 
-                    newTrivia.Add(SyntaxFactory.Whitespace(combinedIndent));
-                    // Skip the next trivia since we've merged it.
-                    i++;
-                }
-                else
-                {
-                    // The next trivia is NOT whitespace (or we are at the end of the list).
-                    // Just insert our indent.
-                    newTrivia.Add(SyntaxFactory.Whitespace(Indent));
-                }
+            // We just added a newline. We need to add indentation now.
+            // Check if the NEXT trivia in the original list is whitespace.
+            if (i + 1 < originalTrivia.Count && originalTrivia[i + 1].IsKind(SyntaxKind.WhitespaceTrivia))
+            {
+                // The next trivia is whitespace (existing indentation).
+                // We combine our indent with it.
+                SyntaxTrivia existingWhitespace = originalTrivia[i + 1];
+                string combinedIndent = existingWhitespace.ToString() + Indent;
+
+                newTrivia.Add(SyntaxFactory.Whitespace(combinedIndent));
+                // Skip the next trivia since we've merged it.
+                i++;
+            }
+            else
+            {
+                // The next trivia is NOT whitespace (or we are at the end of the list).
+                // Just insert our indent.
+                newTrivia.Add(SyntaxFactory.Whitespace(Indent));
             }
         }
 
@@ -2949,9 +2932,9 @@ internal class IndentationRemover : CSharpSyntaxRewriter
     {
         int lastNewlineIndex = FindLastNewlineIndex(trivia);
 
-        return lastNewlineIndex != -1
-            ? ReduceIndentationAfterNewline(trivia, lastNewlineIndex)
-            : ReduceIndentationAtStart(trivia);
+        return lastNewlineIndex == -1
+            ? ReduceIndentationAtStart(trivia)
+            : ReduceIndentationAfterNewline(trivia, lastNewlineIndex);
     }
 
     private static int FindLastNewlineIndex(SyntaxTriviaList trivia)
@@ -3026,14 +3009,15 @@ internal static class InitializerFormatter
     private const int IndentSize = 4;
     public static bool HasComments(SyntaxNode node)
     {
-        return node.DescendantTrivia().Any(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) 
-            || t.IsKind(SyntaxKind.MultiLineCommentTrivia));
+        return node.DescendantTrivia().Any(t =>
+        {
+            return t.IsKind(SyntaxKind.SingleLineCommentTrivia) || t.IsKind(SyntaxKind.MultiLineCommentTrivia);
+        });
     }
 
     public static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
     {
-        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax 
-            or MemberDeclarationSyntax);
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n => n is StatementSyntax or MemberDeclarationSyntax);
 
         if (container is not null)
         {
@@ -3055,13 +3039,17 @@ internal static class InitializerFormatter
         // Remove leading whitespace, keep comments
         SyntaxTriviaList leading = node.GetLeadingTrivia();
 
-        IEnumerable<SyntaxTrivia> newLeading = leading.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
-            && !t.IsKind(SyntaxKind.EndOfLineTrivia));
+        IEnumerable<SyntaxTrivia> newLeading = leading.Where(t =>
+        {
+            return !t.IsKind(SyntaxKind.WhitespaceTrivia) && !t.IsKind(SyntaxKind.EndOfLineTrivia);
+        });
         // Remove trailing whitespace, keep comments
         SyntaxTriviaList trailing = node.GetTrailingTrivia();
 
-        IEnumerable<SyntaxTrivia> newTrailing = trailing.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
-            && !t.IsKind(SyntaxKind.EndOfLineTrivia));
+        IEnumerable<SyntaxTrivia> newTrailing = trailing.Where(t =>
+        {
+            return !t.IsKind(SyntaxKind.WhitespaceTrivia) && !t.IsKind(SyntaxKind.EndOfLineTrivia);
+        });
 
         return node.WithLeadingTrivia(newLeading).WithTrailingTrivia(newTrailing);
     }
@@ -3072,18 +3060,30 @@ internal static class InitializerFormatter
         // Use RemoveWhitespaceOnly instead of WithoutLeadingTrivia/WithoutTrailingTrivia to preserve comments.
         IEnumerable<T> nodes = items.Select(i => RemoveWhitespaceOnly(i));
 
-        IEnumerable<SyntaxToken> separators = Enumerable.Repeat(SyntaxFactory.Token(SyntaxKind.CommaToken).WithTrailingTrivia(SyntaxFactory.Space), items.Count - 1);
+        IEnumerable<SyntaxToken> separators = Enumerable.Repeat(SyntaxFactory
+            .Token(SyntaxKind.CommaToken)
+            .WithTrailingTrivia(SyntaxFactory.Space), items.Count - 1);
+
         return SyntaxFactory.SeparatedList(nodes, separators);
     }
 
     public static SeparatedSyntaxList<T> FormatListMultiLine<T>(SeparatedSyntaxList<T> items, SyntaxTriviaList parentIndent)
         where T : SyntaxNode
     {
-        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
+        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string(' ', IndentSize)));
         SyntaxTrivia newline = SyntaxFactory.CarriageReturnLineFeed;
 
-        IEnumerable<T> nodes = items.Select(i => i.WithoutLeadingTrivia().WithoutTrailingTrivia().WithLeadingTrivia(itemIndent));
-        IEnumerable<SyntaxToken> separators = Enumerable.Repeat(SyntaxFactory.Token(SyntaxKind.CommaToken).WithTrailingTrivia(newline), items.Count - 1);
+        IEnumerable<T> nodes = items.Select(i =>
+        {
+            return i
+                .WithoutLeadingTrivia()
+                .WithoutTrailingTrivia()
+                .WithLeadingTrivia(itemIndent);
+        });
+
+        IEnumerable<SyntaxToken> separators = Enumerable.Repeat(SyntaxFactory
+            .Token(SyntaxKind.CommaToken)
+            .WithTrailingTrivia(newline), items.Count - 1);
 
         return SyntaxFactory.SeparatedList(nodes, separators);
     }
@@ -3091,20 +3091,51 @@ internal static class InitializerFormatter
     public static TNode StripPrecedingTrivia<TNode>(TNode node)
         where TNode : SyntaxNode
     {
-        return node is ObjectCreationExpressionSyntax oce
-            ? (TNode)(object)(oce.ArgumentList is not null ? oce.WithArgumentList(oce.ArgumentList.WithoutTrailingTrivia()) : oce.WithType(oce.Type.WithoutTrailingTrivia()))
-            : node is ImplicitObjectCreationExpressionSyntax ioce ? (TNode)(object)ioce.WithArgumentList(ioce.ArgumentList.WithoutTrailingTrivia()) : node is ArrayCreationExpressionSyntax ace ? (TNode)(object)ace.WithType(ace.Type.WithoutTrailingTrivia()) : node is ImplicitArrayCreationExpressionSyntax iace ? (TNode)(object)iace.WithCloseBracketToken(iace.CloseBracketToken.WithTrailingTrivia(SyntaxFactory.TriviaList())) : node;
+        return node switch
+        {
+            ObjectCreationExpressionSyntax oce => NameMe_1<TNode>(oce),
+            ImplicitObjectCreationExpressionSyntax ioce => NameMe_2<TNode>(ioce),
+            ArrayCreationExpressionSyntax ace => NameMe_3<TNode>(ace),
+            ImplicitArrayCreationExpressionSyntax iace => NameMe_4<TNode>(iace),
+            _ => node
+        };
+    }
+
+    private static TNode NameMe_4<TNode>(ImplicitArrayCreationExpressionSyntax iace) where TNode : SyntaxNode
+    {
+        return (TNode)(object)iace.WithCloseBracketToken(iace.CloseBracketToken.WithTrailingTrivia(SyntaxFactory.TriviaList()));
+    }
+
+    private static TNode NameMe_3<TNode>(ArrayCreationExpressionSyntax ace) where TNode : SyntaxNode
+    {
+        return (TNode)(object)ace.WithType(ace.Type.WithoutTrailingTrivia());
+    }
+
+    private static TNode NameMe_2<TNode>(ImplicitObjectCreationExpressionSyntax ioce) where TNode : SyntaxNode
+    {
+        return (TNode)(object)ioce.WithArgumentList(ioce.ArgumentList.WithoutTrailingTrivia());
+    }
+
+    private static TNode NameMe_1<TNode>(ObjectCreationExpressionSyntax oce) where TNode : SyntaxNode
+    {
+        return (TNode)(object)(oce.ArgumentList is not null
+            ? oce.WithArgumentList(oce.ArgumentList.WithoutTrailingTrivia())
+            : oce.WithType(oce.Type.WithoutTrailingTrivia()));
     }
 
     public static SyntaxToken FormatOpenBraceSingleLine(SyntaxToken openBrace)
     {
         // Ensure space around brace, but preserve existing comments.
         // Flatten leading/trailing to remove newlines, but keep non-whitespace.
-        IEnumerable<SyntaxTrivia> leading = openBrace.LeadingTrivia.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
-            && !t.IsKind(SyntaxKind.EndOfLineTrivia));
+        IEnumerable<SyntaxTrivia> leading = openBrace.LeadingTrivia.Where(t =>
+        {
+            return !t.IsKind(SyntaxKind.WhitespaceTrivia) && !t.IsKind(SyntaxKind.EndOfLineTrivia);
+        });
 
-        IEnumerable<SyntaxTrivia> trailing = openBrace.TrailingTrivia.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
-            && !t.IsKind(SyntaxKind.EndOfLineTrivia));
+        IEnumerable<SyntaxTrivia> trailing = openBrace.TrailingTrivia.Where(t =>
+        {
+            return !t.IsKind(SyntaxKind.WhitespaceTrivia) && !t.IsKind(SyntaxKind.EndOfLineTrivia);
+        });
         // Start with a space, then comments
         SyntaxTriviaList newLeading = SyntaxFactory.TriviaList(SyntaxFactory.Space).AddRange(leading);
         // Ensure space inside the brace.
@@ -3121,8 +3152,10 @@ internal static class InitializerFormatter
 
     public static SyntaxToken FormatCloseBraceSingleLine(SyntaxToken closeBrace)
     {
-        IEnumerable<SyntaxTrivia> leading = closeBrace.LeadingTrivia.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
-            && !t.IsKind(SyntaxKind.EndOfLineTrivia));
+        IEnumerable<SyntaxTrivia> leading = closeBrace.LeadingTrivia.Where(t =>
+        {
+            return !t.IsKind(SyntaxKind.WhitespaceTrivia) && !t.IsKind(SyntaxKind.EndOfLineTrivia);
+        });
         // Prepend space
         SyntaxTriviaList newLeading = SyntaxFactory.TriviaList(SyntaxFactory.Space).AddRange(leading);
         // If there are comments, ensure space after them as well (before the brace)
@@ -3132,8 +3165,10 @@ internal static class InitializerFormatter
         }
 
         // Clean trailing trivia too (remove whitespace/newlines) to ensure compact formatting
-        IEnumerable<SyntaxTrivia> trailing = closeBrace.TrailingTrivia.Where(t => !t.IsKind(SyntaxKind.WhitespaceTrivia) 
-            && !t.IsKind(SyntaxKind.EndOfLineTrivia));
+        IEnumerable<SyntaxTrivia> trailing = closeBrace.TrailingTrivia.Where(t =>
+        {
+            return !t.IsKind(SyntaxKind.WhitespaceTrivia) & !t.IsKind(SyntaxKind.EndOfLineTrivia);
+        });
 
         SyntaxTriviaList newTrailing = SyntaxFactory.TriviaList(trailing);
 
@@ -3205,74 +3240,122 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
             InitializerStyle.MultiLine => FormattingAction.MultiLine,
             // Preserve mode: only force SingleLine if it was already single-line (recovery)
             InitializerStyle.Preserve => wasSingleLine
-            ? FormattingAction.SingleLine
-            : FormattingAction.None,
+                ? FormattingAction.SingleLine
+                : FormattingAction.None,
             _ => wasSingleLine
-            ? FormattingAction.SingleLine
-            : FormattingAction.None,
+                ? FormattingAction.SingleLine
+                : FormattingAction.None,
         };
     }
 
     public override SyntaxNode? VisitAnonymousObjectCreationExpression(AnonymousObjectCreationExpressionSyntax node)
+    {
+        FormattingAction action = GetFormattingAction(node);
+
+        return action switch
+        {
+            FormattingAction.SingleLine => NameMe_6(node),
+            FormattingAction.MultiLine => NameMe_5(node),
+            FormattingAction.None => throw new NotImplementedException(),
+            _ => base.VisitAnonymousObjectCreationExpression(node)
+        };
+    }
+
+    private FormattingAction GetFormattingAction(AnonymousObjectCreationExpressionSyntax node)
     {
         bool hasComments = InitializerFormatter.HasComments(node);
         bool wasSingleLine = node.HasAnnotations(LayoutAnnotator.SingleLineAnnotationKind);
         bool hasItems = node.Initializers.Any();
 
         FormattingAction action = DetermineAction(_options.AnonymousType, hasComments, wasSingleLine, hasItems);
+        return action;
+    }
 
-        if (action == FormattingAction.SingleLine)
-        {
-            SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListSingleLine(node.Initializers);
-            AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
+    private static AnonymousObjectCreationExpressionSyntax NameMe_6(AnonymousObjectCreationExpressionSyntax node)
+    {
+        SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListSingleLine(node.Initializers);
+        AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
 
-            return cleanNode.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(cleanNode.OpenBraceToken)).WithInitializers(newMembers).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(cleanNode.CloseBraceToken));
-        }
+        return GetSingleLineCleanNode(newMembers, cleanNode);
+    }
 
-        if (action == FormattingAction.MultiLine)
-        {
-            SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
-            SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListMultiLine(node.Initializers, parentIndent);
-            AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
+    private static AnonymousObjectCreationExpressionSyntax NameMe_5(AnonymousObjectCreationExpressionSyntax node)
+    {
+        SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
+        SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers = InitializerFormatter.FormatListMultiLine(node.Initializers, parentIndent);
+        AnonymousObjectCreationExpressionSyntax cleanNode = node.WithNewKeyword(node.NewKeyword.WithTrailingTrivia(SyntaxFactory.TriviaList()));
 
-            return cleanNode.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(cleanNode.OpenBraceToken, parentIndent)).WithInitializers(newMembers).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(cleanNode.CloseBraceToken, parentIndent));
-        }
+        return GetMultiLineCleanNode(parentIndent, newMembers, cleanNode);
+    }
 
-        return base.VisitAnonymousObjectCreationExpression(node);
+    private static AnonymousObjectCreationExpressionSyntax GetMultiLineCleanNode(SyntaxTriviaList parentIndent, SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers, AnonymousObjectCreationExpressionSyntax cleanNode)
+    {
+        return cleanNode
+            .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(cleanNode.OpenBraceToken, parentIndent))
+            .WithInitializers(newMembers)
+            .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(cleanNode.CloseBraceToken, parentIndent));
+    }
+
+    private static AnonymousObjectCreationExpressionSyntax GetSingleLineCleanNode(SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> newMembers, AnonymousObjectCreationExpressionSyntax cleanNode)
+    {
+        return cleanNode
+            .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(cleanNode.OpenBraceToken))
+            .WithInitializers(newMembers)
+            .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(cleanNode.CloseBraceToken));
     }
 
     public override SyntaxNode? VisitCollectionExpression(CollectionExpressionSyntax node)
+    {
+        FormattingAction action = GetFormattingAction(node);
+
+        return action switch
+        {
+            FormattingAction.SingleLine => NameMe_4(node),
+            FormattingAction.MultiLine => NameMe_3(node),
+            FormattingAction.None => throw new NotImplementedException(),
+            _ => base.VisitCollectionExpression(node)
+        };
+    }
+
+    private FormattingAction GetFormattingAction(CollectionExpressionSyntax node)
     {
         bool hasComments = InitializerFormatter.HasComments(node);
         bool wasSingleLine = node.HasAnnotations(LayoutAnnotator.SingleLineAnnotationKind);
         bool hasItems = node.Elements.Any();
 
-        FormattingAction action = DetermineAction(_options.Collection, hasComments, wasSingleLine, hasItems);
+        return DetermineAction(_options.Collection, hasComments, wasSingleLine, hasItems);
+    }
 
-        if (action == FormattingAction.SingleLine)
-        {
-            SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListSingleLine(node.Elements);
+    private static CollectionExpressionSyntax NameMe_4(CollectionExpressionSyntax node)
+    {
+        SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListSingleLine(node.Elements);
 
-            return node.WithOpenBracketToken(node.OpenBracketToken.WithLeadingTrivia(SyntaxFactory.TriviaList()).WithTrailingTrivia(SyntaxFactory.Space)).WithElements(newElements).WithCloseBracketToken(node.CloseBracketToken.WithLeadingTrivia(SyntaxFactory.Space));
-        }
+        SyntaxToken openBracketToken = node.OpenBracketToken
+            .WithLeadingTrivia(SyntaxFactory.TriviaList())
+            .WithTrailingTrivia(SyntaxFactory.Space);
 
-        if (action == FormattingAction.MultiLine)
-        {
-            SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
-            SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListMultiLine(node.Elements, parentIndent);
+        return node
+            .WithOpenBracketToken(openBracketToken)
+            .WithElements(newElements)
+            .WithCloseBracketToken(node.CloseBracketToken.WithLeadingTrivia(SyntaxFactory.Space));
+    }
 
-            return node.WithOpenBracketToken(InitializerFormatter.FormatOpenBraceMultiLine(node.OpenBracketToken, parentIndent)).WithElements(newElements).WithCloseBracketToken(InitializerFormatter.FormatCloseBraceMultiLine(node.CloseBracketToken, parentIndent));
-        }
+    private static CollectionExpressionSyntax NameMe_3(CollectionExpressionSyntax node)
+    {
+        SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
+        SeparatedSyntaxList<CollectionElementSyntax> newElements = InitializerFormatter.FormatListMultiLine(node.Elements, parentIndent);
 
-        return base.VisitCollectionExpression(node);
+        return node
+            .WithOpenBracketToken(InitializerFormatter.FormatOpenBraceMultiLine(node.OpenBracketToken, parentIndent))
+            .WithElements(newElements)
+            .WithCloseBracketToken(InitializerFormatter.FormatCloseBraceMultiLine(node.CloseBracketToken, parentIndent));
     }
 
     public override SyntaxNode? VisitEqualsValueClause(EqualsValueClauseSyntax node)
     {
         EqualsValueClauseSyntax visited = (EqualsValueClauseSyntax)base.VisitEqualsValueClause(node)!;
 
-        return _options.Collection == InitializerStyle.MultiLine 
-            && visited.Value is CollectionExpressionSyntax
+        return _options.Collection == InitializerStyle.MultiLine && visited.Value is CollectionExpressionSyntax
             ? visited.WithEqualsToken(visited.EqualsToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
             : visited;
     }
@@ -3281,8 +3364,7 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
     {
         AssignmentExpressionSyntax visited = (AssignmentExpressionSyntax)base.VisitAssignmentExpression(node)!;
 
-        return _options.Collection == InitializerStyle.MultiLine 
-            && visited.Right is CollectionExpressionSyntax
+        return _options.Collection == InitializerStyle.MultiLine && visited.Right is CollectionExpressionSyntax
             ? visited.WithOperatorToken(visited.OperatorToken.WithTrailingTrivia(SyntaxFactory.TriviaList()))
             : visited;
     }
@@ -3315,39 +3397,66 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
             return VisitBaseExpression(node);
         }
 
+        return GetFormattingAction(node, initializer) switch
+        {
+            FormattingAction.SingleLine => NameMe_1(node, initializer, withInitializer),
+            FormattingAction.MultiLine => NameMe_2(node, initializer, withInitializer),
+            FormattingAction.None => throw new NotImplementedException(),
+            _ => VisitBaseExpression(node)
+        };
+    }
+
+    private FormattingAction GetFormattingAction<TNode>(TNode node, InitializerExpressionSyntax initializer)
+        where TNode : ExpressionSyntax
+    {
         bool hasComments = InitializerFormatter.HasComments(node);
         bool wasSingleLine = initializer.HasAnnotations(LayoutAnnotator.SingleLineAnnotationKind);
         bool hasItems = initializer.Expressions.Any();
 
-        bool isColl = initializer.IsKind(SyntaxKind.CollectionInitializerExpression) 
-            || initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
+        InitializerStyle style = GetInitializerStyle(initializer);
+        FormattingAction action = DetermineAction(style, hasComments, wasSingleLine, hasItems);
+        return action;
+    }
 
-        InitializerStyle style = isColl
+    private static SyntaxNode NameMe_2<TNode>(TNode node, InitializerExpressionSyntax initializer, Func<TNode, InitializerExpressionSyntax, TNode> withInitializer)
+        where TNode : ExpressionSyntax
+    {
+        SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
+        SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListMultiLine(initializer.Expressions, parentIndent);
+        TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
+
+        InitializerExpressionSyntax newInit = initializer
+            .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(initializer.OpenBraceToken, parentIndent))
+            .WithExpressions(newExps)
+            .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(initializer.CloseBraceToken, parentIndent));
+
+        return withInitializer(cleanNode, newInit);
+    }
+
+    private static SyntaxNode NameMe_1<TNode>(TNode node, InitializerExpressionSyntax initializer, Func<TNode, InitializerExpressionSyntax, TNode> withInitializer)
+        where TNode : ExpressionSyntax
+    {
+        SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListSingleLine(initializer.Expressions);
+        TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
+
+        InitializerExpressionSyntax newInit = initializer
+            .WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(initializer.OpenBraceToken))
+            .WithExpressions(newExps)
+            .WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(initializer.CloseBraceToken));
+
+        return withInitializer(cleanNode, newInit);
+    }
+
+    private InitializerStyle GetInitializerStyle(InitializerExpressionSyntax initializer)
+    {
+        return IsCollectionInitializer(initializer)
             ? _options.Collection
             : _options.Object;
+    }
 
-        FormattingAction action = DetermineAction(style, hasComments, wasSingleLine, hasItems);
-
-        if (action == FormattingAction.SingleLine)
-        {
-            SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListSingleLine(initializer.Expressions);
-            TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
-            InitializerExpressionSyntax newInit = initializer.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceSingleLine(initializer.OpenBraceToken)).WithExpressions(newExps).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceSingleLine(initializer.CloseBraceToken));
-
-            return withInitializer(cleanNode, newInit);
-        }
-
-        if (action == FormattingAction.MultiLine)
-        {
-            SyntaxTriviaList parentIndent = InitializerFormatter.GetParentIndentation(node);
-            SeparatedSyntaxList<ExpressionSyntax> newExps = InitializerFormatter.FormatListMultiLine(initializer.Expressions, parentIndent);
-            TNode cleanNode = InitializerFormatter.StripPrecedingTrivia(node);
-            InitializerExpressionSyntax newInit = initializer.WithOpenBraceToken(InitializerFormatter.FormatOpenBraceMultiLine(initializer.OpenBraceToken, parentIndent)).WithExpressions(newExps).WithCloseBraceToken(InitializerFormatter.FormatCloseBraceMultiLine(initializer.CloseBraceToken, parentIndent));
-
-            return withInitializer(cleanNode, newInit);
-        }
-
-        return VisitBaseExpression(node);
+    private static bool IsCollectionInitializer(InitializerExpressionSyntax initializer)
+    {
+        return initializer.IsKind(SyntaxKind.CollectionInitializerExpression) || initializer.IsKind(SyntaxKind.ArrayInitializerExpression);
     }
 
     private SyntaxNode VisitBaseExpression(SyntaxNode node)
@@ -3360,6 +3469,135 @@ internal class InitializerRewriter : CSharpSyntaxRewriter
             ImplicitArrayCreationExpressionSyntax iace => base.VisitImplicitArrayCreationExpression(iace)!,
             _ => node
         };
+    }
+}
+```
+
+---
+
+### `Styly\Rewriters\LogicalExpression\LogicalExpressionRewriter.cs`
+
+```csharp
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Styly.Configuration;
+
+namespace Styly.Rewriters.LogicalExpression;
+
+internal class LogicalExpressionRewriter : CSharpSyntaxRewriter
+{
+    private readonly LogicalExpressionOptions _options;
+    private const int IndentSize = 4;
+    public LogicalExpressionRewriter(LogicalExpressionOptions options)
+    {
+        _options = options;
+    }
+
+    public override SyntaxNode? VisitBinaryExpression(BinaryExpressionSyntax node)
+    {
+        if (_options.Style != LogicalExpressionStyle.MultiLine || !IsLogical(node.Kind()))
+        {
+            return base.VisitBinaryExpression(node);
+        }
+
+        // Only process from the root of a logical chain to avoid redundant work
+        return IsLogical(node.Parent?.Kind() ?? SyntaxKind.None)
+            ? base.VisitBinaryExpression(node)
+            : FormatChain(node);
+    }
+
+    public override SyntaxNode? VisitBinaryPattern(BinaryPatternSyntax node)
+    {
+        if (_options.Style != LogicalExpressionStyle.MultiLine)
+        {
+            return base.VisitBinaryPattern(node);
+        }
+
+        // Only process from the root of a pattern chain
+        return node.Parent is BinaryPatternSyntax
+            ? base.VisitBinaryPattern(node)
+            : FormatChain(node);
+    }
+
+    private static SyntaxNode FormatChain(SyntaxNode root)
+    {
+        SyntaxTriviaList parentIndent = GetParentIndentation(root);
+        SyntaxTriviaList itemIndent = parentIndent.Add(SyntaxFactory.Whitespace(new string (' ', IndentSize)));
+        // Delegate the actual token wrapping to the specialized visitor
+        return new LogicalTriviaApplier(itemIndent).Visit(root);
+    }
+
+    private static bool IsLogical(SyntaxKind kind)
+    {
+        return kind is SyntaxKind.LogicalAndExpression or SyntaxKind.LogicalOrExpression;
+    }
+
+    private static SyntaxTriviaList GetParentIndentation(SyntaxNode node)
+    {
+        SyntaxNode? container = node.FirstAncestorOrSelf<SyntaxNode>(n =>
+        {
+            return n is StatementSyntax or MemberDeclarationSyntax;
+        });
+
+        if (container is null)
+        {
+            return SyntaxFactory.TriviaList();
+        }
+
+        SyntaxTriviaList leading = container.GetLeadingTrivia();
+        SyntaxTrivia lastWhitespace = leading.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
+
+        return !lastWhitespace.IsKind(SyntaxKind.None)
+            ? SyntaxFactory.TriviaList(lastWhitespace)
+            : SyntaxFactory.TriviaList();
+    }
+}
+```
+
+---
+
+### `Styly\Rewriters\LogicalExpression\LogicalTriviaApplier.cs`
+
+```csharp
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+namespace Styly.Rewriters.LogicalExpression;
+
+internal class LogicalTriviaApplier : CSharpSyntaxRewriter
+{
+    private readonly SyntaxTriviaList _indent;
+    private readonly SyntaxTrivia _newline = SyntaxFactory.CarriageReturnLineFeed;
+    public LogicalTriviaApplier(SyntaxTriviaList indent)
+    {
+        _indent = indent;
+    }
+
+    public override SyntaxToken VisitToken(SyntaxToken token)
+    {
+        // If it's a logical operator within a binary expression or pattern, wrap it
+        if (IsLogicalOperator(token) && (token.Parent is BinaryExpressionSyntax or BinaryPatternSyntax))
+        {
+            // If it's a logical operator within a binary expression or pattern, wrap it
+            return NameMe(token);
+        }
+
+        // If it's a logical operator within a binary expression or pattern, wrap it
+        return base.VisitToken(token);
+    }
+
+    private SyntaxToken NameMe(SyntaxToken token)
+    {
+        return token
+            .WithLeadingTrivia(SyntaxFactory.TriviaList(_newline).AddRange(_indent))
+            .WithTrailingTrivia(SyntaxFactory.Space);
+    }
+
+    private static bool IsLogicalOperator(SyntaxToken token)
+    {
+        return token.IsKind(SyntaxKind.AmpersandAmpersandToken) || token.IsKind(SyntaxKind.BarBarToken) || token.IsKind(SyntaxKind.AndKeyword) || token.IsKind(SyntaxKind.OrKeyword);
     }
 }
 ```
@@ -3438,376 +3676,6 @@ public class BasicFormattingTests : FormatterTestBase
             """;
 
         AssertFormatting(input, expected, new FormatOptions());
-    }
-}
-```
-
----
-
-### `Styly.Tests\CallChainTests.cs`
-
-```csharp
-using Styly.Configuration;
-
-namespace Styly.Tests;
-
-public class CallChainTests : FormatterTestBase
-{
-    [Fact]
-    public static void CallChain_SingleLine_FlattensMultiLineChain()
-    {
-        string input = """
-            void M()
-            {
-                var result = obj
-                    .Method1()
-                    .Method2()
-                    .Method3();
-            }
-            """;
-
-        string expected = "var result = obj.Method1().Method2().Method3();";
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.SingleLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_SingleLine_PreservesAlreadySingleLine()
-    {
-        string input = "var result = obj.Method1().Method2();";
-        string expected = "var result = obj.Method1().Method2();";
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.SingleLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_MultiLine_ExpandsChain()
-    {
-        string input = "var result = obj.Method1().Method2().Method3();";
-
-        string expected = """
-            var result = obj
-                .Method1()
-                .Method2()
-                .Method3();
-            """;
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.MultiLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_MultiLine_PreservesAlreadyMultiLine()
-    {
-        string input = """
-            var result = obj
-                .Method1()
-                .Method2();
-            """;
-
-        string expected = """
-            var result = obj
-                .Method1()
-                .Method2();
-            """;
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.MultiLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_Preserve_DoesNotModify()
-    {
-        string input = """
-            void M()
-            {
-                var a = obj.Method1().Method2();
-                var b = obj
-                    .Method1()
-                    .Method2();
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                var a = obj.Method1().Method2();
-                var b = obj
-                    .Method1()
-                    .Method2();
-            }
-            """;
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.Preserve
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_SingleLine_IgnoresSingleMemberAccess()
-    {
-        string input = "var x = obj.Property;";
-        string expected = "var x = obj.Property;";
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.SingleLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_MultiLine_IgnoresSingleMemberAccess()
-    {
-        string input = "var x = obj.Property;";
-        string expected = "var x = obj.Property;";
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.MultiLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_SingleLine_HandlesNestedChains()
-    {
-        string input = """
-            void M()
-            {
-                var result = outer
-                    .GetInner()
-                    .Items
-                    .Select(x => x.Value)
-                    .Where(x => x > 0)
-                    .ToList();
-            }
-            """;
-
-        string expected = "var result = outer.GetInner().Items.Select(x => x.Value).Where(x => x > 0).ToList();";
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.SingleLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_MultiLine_HandlesNestedChains()
-    {
-        string input = "var result = outer.GetInner().Items.Select(x => x.Value).ToList();";
-
-        string expected = """
-            var result = outer
-                .GetInner()
-                .Items
-                .Select(x => x.Value)
-                .ToList();
-            """;
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.MultiLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_MultiLine_PreservesIndentationContext()
-    {
-        string input = """
-            void M()
-            {
-                if (true)
-                {
-                    var x = obj.Method1().Method2();
-                }
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                if (true)
-                {
-                    var x = obj
-                        .Method1()
-                        .Method2();
-                }
-            }
-            """;
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.MultiLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_SingleLine_RemovesExtraWhitespace()
-    {
-        string input = """
-            var x = obj
-                .Method1 ( )
-                .Method2( arg );
-            """;
-
-        string expected = "var x = obj.Method1().Method2(arg);";
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.SingleLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_MultiLine_WithInvocationInChain()
-    {
-        string input = "var r = factory.Create().Configure().Build().Execute();";
-
-        string expected = """
-            var r = factory
-                .Create()
-                .Configure()
-                .Build()
-                .Execute();
-            """;
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.MultiLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_Preserve_DoesNotBreakComments()
-    {
-        string input = """
-            var result = obj
-                .Method1() // first step
-                .Method2(); // second step
-            """;
-
-        string expected = """
-            var result = obj
-                .Method1() // first step
-                .Method2(); // second step
-            """;
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.Preserve
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_SingleLine_TwoPartChainIsFlattened()
-    {
-        string input = "var x = obj\n    .Method();";
-        string expected = "var x = obj.Method();";
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.SingleLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void CallChain_MultiLine_TwoPartChainIsExpanded()
-    {
-        string input = "var x = obj.Method();";
-        string expected = """
-            var x = obj
-                .Method();
-            """;
-
-        FormatOptions options = new()
-        {
-            CallChain = new CallChainOptions
-            {
-                Style = CallChainStyle.MultiLine
-            }
-        };
-
-        AssertFormatting(input, expected, options);
     }
 }
 ```
@@ -4101,125 +3969,6 @@ public class EnumerableAnyTests : FormatterTestBase
 
 ---
 
-### `Styly.Tests\ExpressionIsolationTests.cs`
-
-```csharp
-using Styly.Configuration;
-
-namespace Styly.Tests;
-
-public class ExpressionIsolationTests : FormatterTestBase
-{
-    [Fact]
-    public static void Isolation_MultiLineTernary_AddsBlankLines()
-    {
-        string input = """
-            void M()
-            {
-                var a = 1;
-                var b = true ? "long_branch_1" : "long_branch_2";
-                var c = 2;
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                var a = 1;
-
-                var b = true
-                    ? "long_branch_1"
-                    : "long_branch_2";
-
-                var c = 2;
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Ternary.Style = TernaryStyle.MultiLine;
-        options.Spacing.EmptyLineAroundMultiLineExpression = true;
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Isolation_MultiLineObjectInitializer_AddsBlankLines()
-    {
-        string input = """
-            void M()
-            {
-                var x = 10;
-                var o = new Obj { A = 1, B = 2 };
-                var y = 20;
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                var x = 10;
-
-                var o = new Obj
-                {
-                    A = 1,
-                    B = 2
-                };
-
-                var y = 20;
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Initializers.Object = InitializerStyle.MultiLine;
-        options.Spacing.EmptyLineAroundMultiLineExpression = true;
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Isolation_MultipleMixed_HandlesFlow()
-    {
-        string input = """
-            void M()
-            {
-                var a = 1;
-                var b = true ? "1" : "2";
-                var c = new { X = 1, Y = 2 };
-                var d = 4;
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                var a = 1;
-
-                var b = true
-                    ? "1"
-                    : "2";
-
-                var c = new
-                {
-                    X = 1,
-                    Y = 2
-                };
-
-                var d = 4;
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Ternary.Style = TernaryStyle.MultiLine;
-        options.Initializers.AnonymousType = InitializerStyle.MultiLine;
-        options.Spacing.EmptyLineAroundMultiLineExpression = true;
-
-        AssertFormatting(input, expected, options);
-    }
-}
-```
-
----
-
 ### `Styly.Tests\FormatterTests.cs`
 
 ```csharp
@@ -4249,13 +3998,15 @@ public abstract class FormatterTestBase
         }
 
         // Convert to common line ending
-        string normalized = text.Replace("""
+        string normalized = text
+            .Replace("""
 
 
         """, """
 
 
-        """).Trim();
+        """)
+            .Trim();
         // Split into lines
         string[] lines = normalized.Split('\n');
         // Find the minimum indentation across all non-empty lines
@@ -4286,358 +4037,12 @@ public abstract class FormatterTestBase
             ? line[minIndent..].TrimEnd()
             : line.TrimEnd());
 
-        return string.Join("""
+        return string
+            .Join("""
 
 
-        """, cleanedLines).Trim();
-    }
-}
-```
-
----
-
-### `Styly.Tests\InitializerTests.cs`
-
-```csharp
-using Styly.Configuration;
-
-namespace Styly.Tests;
-
-public class InitializerTests : FormatterTestBase
-{
-    [Fact]
-    public static void Initializers_Object_MultiLine()
-    {
-        string input = "var o = new Obj { A = 1, B = 2 };";
-
-        string expected = """
-            var o = new Obj
-            {
-                A = 1,
-                B = 2
-            };
-            """;
-
-        FormatOptions options = new();
-        options.Initializers.Object = InitializerStyle.MultiLine;
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Initializers_Object_SingleLine()
-    {
-        string input = """
-            var o = new Obj
-            {
-                A = 1,
-                B = 2
-            };
-            """;
-
-        string expected = "var o = new Obj { A = 1, B = 2 };";
-
-        FormatOptions options = new();
-        options.Initializers.Object = InitializerStyle.SingleLine;
-
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Initializers_Anonymous_MultiLine()
-    {
-        string input = "var a = new { X = 1, Y = 2 };";
-
-        string expected = """
-            var a = new
-            {
-                X = 1,
-                Y = 2
-            };
-            """;
-
-        FormatOptions options = new();
-        options.Initializers.AnonymousType = InitializerStyle.MultiLine;
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Initializers_Collection_MultiLine()
-    {
-        string input = "var l = new List<int> { 1, 2, 3 };";
-
-        string expected = """
-            var l = new List<int>
-            {
-                1,
-                2,
-                3
-            };
-            """;
-
-        FormatOptions options = new();
-        options.Initializers.Collection = InitializerStyle.MultiLine;
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Initializers_CollectionExpression_MultiLine()
-    {
-        string input = "var x = [1, 2];";
-
-        string expected = """
-            var x =
-            [
-                1,
-                2
-            ];
-            """;
-
-        FormatOptions options = new();
-        options.Initializers.Collection = InitializerStyle.MultiLine;
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Initializers_Preserve_Comments()
-    {
-        string input = "var o = new Obj { /* comment */ A = 1 };";
-        string expected = "var o = new Obj { /* comment */ A = 1 };";
-
-        FormatOptions options = new();
-        options.Initializers.Object = InitializerStyle.MultiLine;
-
-        AssertFormatting(input, expected, options);
-    }
-}
-```
-
----
-
-### `Styly.Tests\ModifierTests.cs`
-
-```csharp
-using Styly.Configuration;
-
-namespace Styly.Tests;
-
-public class ModifiersTests : FormatterTestBase
-{
-    private readonly FormatOptions _options = new()
-    {
-        Modifiers = new ModifiersOptions
-        {
-            MakeStaticWhenPossible = true
-        }
-    };
-    [Fact]
-    public void Modifiers_MakeStatic_SimpleMethod()
-    {
-        string input = """
-            class C
-            {
-                void M()
-                {
-                    int x = 1;
-                }
-            }
-            """;
-
-        string expected = """
-            class C
-            {
-                static void M()
-                {
-                    int x = 1;
-                }
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
-    }
-
-    [Fact]
-    public void Modifiers_MakeStatic_WithParameters()
-    {
-        string input = """
-            class C
-            {
-                int Add(int a, int b) => a + b;
-            }
-            """;
-
-        string expected = """
-            class C
-            {
-                static int Add(int a, int b) => a + b;
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
-    }
-
-    [Fact]
-    public void Modifiers_MakeStatic_AccessingOtherInstance()
-    {
-        string input = """
-            class C
-            {
-                public int Val;
-                void Update(C other) => other.Val = 5;
-            }
-            """;
-
-        string expected = """
-            class C
-            {
-                public int Val;
-                static void Update(C other) => other.Val = 5;
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
-    }
-
-    [Fact]
-    public void Modifiers_MakeStatic_AccessingStaticMember()
-    {
-        string input = """
-            class C
-            {
-                static int G = 0;
-                void M() => G++;
-            }
-            """;
-
-        string expected = """
-            class C
-            {
-                static int G = 0;
-                static void M() => G++;
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
-    }
-
-    [Fact]
-    public void Modifiers_KeepInstance_AccessingThisField()
-    {
-        string input = """
-            class C
-            {
-                int _f;
-                void M() => _f = 1;
-            }
-            """;
-
-        string expected = """
-            class C
-            {
-                int _f;
-                void M() => _f = 1;
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
-    }
-
-    [Fact]
-    public void Modifiers_KeepInstance_AccessingBaseMember()
-    {
-        string input = """
-            class Base { public int B; }
-            class C : Base
-            {
-                void M() => B = 2;
-            }
-            """;
-
-        string expected = """
-            class Base
-            {
-                public int B;
-            }
-
-            class C : Base
-            {
-                void M() => B = 2;
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
-    }
-
-    [Fact]
-    public void Modifiers_KeepInstance_VirtualMethods()
-    {
-        string input = """
-            class C
-            {
-                public virtual void M() { }
-            }
-            """;
-
-        string expected = """
-            class C
-            {
-                public virtual void M()
-                {
-                }
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
-    }
-
-    [Fact]
-    public void Modifiers_KeepInstance_InterfaceImplementation()
-    {
-        string input = """
-            interface I { void M(); }
-            class C : I
-            {
-                void I.M() { }
-            }
-            """;
-
-        string expected = """
-            interface I
-            {
-                void M();
-            }
-
-            class C : I
-            {
-                void I.M()
-                {
-                }
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
-    }
-
-    [Fact]
-    public void Modifiers_InsertsStaticCorrectly_WithVisibility()
-    {
-        string input = """
-            class C
-            {
-                public void M() { }
-            }
-            """;
-
-        string expected = """
-            class C
-            {
-                public static void M()
-                {
-                }
-            }
-            """;
-
-        AssertFormatting(input, expected, _options);
+        """, cleanedLines)
+            .Trim();
     }
 }
 ```
@@ -4648,7 +4053,6 @@ public class ModifiersTests : FormatterTestBase
 
 ```csharp
 using Styly.Configuration;
-using Styly.Core;
 
 namespace Styly.Tests;
 
@@ -4884,7 +4288,6 @@ public class RawStringIsolationTests : FormatterTestBase
 ```csharp
 using Styly.Configuration;
 using Styly.Core;
-using Xunit;
 
 namespace Styly.Tests;
 
@@ -4896,197 +4299,6 @@ public class SafetyTests : FormatterTestBase
         string input = "public class C { int x = ; }"; // Syntax error
 
         _ = Assert.Throws<InvalidOperationException>(() => CodeFormatter.Reformat(input, new FormatOptions()));
-    }
-}
-```
-
----
-
-### `Styly.Tests\SpacingTests.cs`
-
-```csharp
-using Styly.Configuration;
-
-namespace Styly.Tests;
-
-public class SpacingTests : FormatterTestBase
-{
-    [Fact]
-    public static void Spacing_EmptyLineBeforeControlFlow_If()
-    {
-        string input = """
-            void M()
-            {
-                Console.WriteLine();
-                if (true) { }
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                Console.WriteLine();
-
-                if (true)
-                {
-                }
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Spacing.EmptyLineBeforeControlFlow = true;
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Spacing_EmptyLineBeforeControlFlow_MultipleTypes()
-    {
-        string input = """
-            void M()
-            {
-                int x = 1;
-                while (x < 10) x++;
-                x++;
-                for (int i = 0; i < 5; i++) { }
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                int x = 1;
-
-                while (x < 10)
-                    x++;
-                x++;
-
-                for (int i = 0; i < 5; i++)
-                {
-                }
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Spacing.EmptyLineBeforeControlFlow = true;
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Spacing_EmptyLineAfterControlFlow_If()
-    {
-        string input = """
-            void M()
-            {
-                if (true) { }
-                Console.WriteLine();
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                if (true)
-                {
-                }
-
-                Console.WriteLine();
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Spacing.EmptyLineAfterControlFlow = true;
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Spacing_BeforeAndAfter_ControlFlow()
-    {
-        string input = """
-            void M()
-            {
-                Start();
-                if (true) { }
-                End();
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                Start();
-
-                if (true)
-                {
-                }
-
-                End();
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Spacing.EmptyLineBeforeControlFlow = true;
-        options.Spacing.EmptyLineAfterControlFlow = true;
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Spacing_TopLevelStatements()
-    {
-        string input = """
-            Console.WriteLine("Start");
-            if (args.Length > 0)
-            {
-                Console.WriteLine("Args");
-            }
-            """;
-
-        string expected = """
-            Console.WriteLine("Start");
-
-            if (args.Length > 0)
-            {
-                Console.WriteLine("Args");
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Spacing.EmptyLineBeforeControlFlow = true;
-        AssertFormatting(input, expected, options);
-    }
-
-    [Fact]
-    public static void Spacing_MultiLineInitializer_AddsBlankLine()
-    {
-        string input = """
-            void M()
-            {
-                SomeClass modes = new() { A = 1, B = 2 };
-                int integer = 10;
-                var x = new { X = 1 };
-                return;
-            }
-            """;
-
-        string expected = """
-            void M()
-            {
-                SomeClass modes = new()
-                {
-                    A = 1,
-                    B = 2
-                };
-
-                int integer = 10;
-                var x = new { X = 1 };
-                return;
-            }
-            """;
-
-        FormatOptions options = new();
-        options.Initializers.Object = InitializerStyle.MultiLine;
-        options.Initializers.AnonymousType = InitializerStyle.SingleLine;
-
-        AssertFormatting(input, expected, options);
     }
 }
 ```
@@ -5247,63 +4459,866 @@ public class VariablesTests : FormatterTestBase
 
 ---
 
-### `Docs\pitfalls.md`
-
-```markdown
-# Development Pitfalls & Lessons Learned
-
-This document tracks tricky bugs, failed approaches, and final solutions encountered during development to prevent regression.
-
----
-
-## 1. The `NormalizeWhitespace` vs. Single-Line Initializer Conflict
-
-### 🛑 The Problem
-
-Roslyn's `NormalizeWhitespace()` is extremely aggressive. It assumes standard C# formatting conventions, which often implies expanding blocks and initializers to multiple lines.
-
-When we force an initializer back to **SingleLine** (e.g., `new[] { 1 }`) inside a rewriter, `NormalizeWhitespace` has often already inserted indentation or newlines between the closing brace `}` and the next token (e.g., `)`, `;`, or `,`).
-
-**Symptom:**
-Input: `foreach (var x in new[] { 1 })`
-Output: `foreach (var x in new[] { 1 }    )`  <-- Excess spacing artifacts.
-
-### ❌ Failed Attempts
-
-1. **Stripping Trivia in `InitializerRewriter`:** Failed because whitespace usually belongs to the *next* token's LeadingTrivia.
-2. **Customizing `NormalizeWhitespace`:** Failed because the API lacks granularity.
-
-### ✅ The Final Fix: `CleanupTokenSpacing` (Late-Stage Cleanup)
-
-We implemented a global token cleanup pass at the end of the pipeline (`CodeFormatter.cs`) to aggressively strip whitespace between specific token pairs (e.g., `}` and `)` or `}` and `;`) if they appear on the same line.
-
----
-
-## 2. Usings vs. Namespace Spacing (The "Drifting Newlines" Bug)
-
-### 🛑 The Problem
-
-When `UsingSorterRewriter` sorts directives, the nodes carry their original trivia (whitespace/newlines) to their new positions.
-
-* If `using System;` moves from the bottom (where it had 2 trailing newlines) to the top, it creates a large gap at the start.
-* If the next item `using System.Text;` moves up, it might keep its leading newline, adding to the gap.
-
-**Symptom:**
+### `Styly.Tests\CallChain\CallChainMultiLineTests.cs`
 
 ```csharp
-using System;
- // <--- Unwanted extra gap
-using System.Text;
+using Styly.Configuration;
+
+namespace Styly.Tests.CallChain;
+
+public class CallChainMultiLineTests : FormatterTestBase
+{
+    [Fact]
+    public static void CallChain_MultiLine_ExpandsChain()
+    {
+        string input = "var result = obj.Method1().Method2().Method3();";
+
+        string expected = """
+            var result = obj
+                .Method1()
+                .Method2()
+                .Method3();
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.MultiLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_MultiLine_PreservesAlreadyMultiLine()
+    {
+        string input = """
+            var result = obj
+                .Method1()
+                .Method2();
+            """;
+
+        string expected = """
+            var result = obj
+                .Method1()
+                .Method2();
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.MultiLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_MultiLine_IgnoresSingleMemberAccess()
+    {
+        string input = "var x = obj.Property;";
+        string expected = "var x = obj.Property;";
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.MultiLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_MultiLine_HandlesNestedChains()
+    {
+        string input = "var result = outer.GetInner().Items.Select(x => x.Value).ToList();";
+
+        string expected = """
+            var result = outer
+                .GetInner()
+                .Items
+                .Select(x => x.Value)
+                .ToList();
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.MultiLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_MultiLine_PreservesIndentationContext()
+    {
+        string input = """
+            void M()
+            {
+                if (true)
+                {
+                    var x = obj.Method1().Method2();
+                }
+            }
+            """;
+
+        string expected = """
+            void M()
+            {
+                if (true)
+                {
+                    var x = obj
+                        .Method1()
+                        .Method2();
+                }
+            }
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.MultiLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_MultiLine_WithInvocationInChain()
+    {
+        string input = "var r = factory.Create().Configure().Build().Execute();";
+
+        string expected = """
+            var r = factory
+                .Create()
+                .Configure()
+                .Build()
+                .Execute();
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.MultiLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_MultiLine_TwoPartChainIsExpanded()
+    {
+        string input = "var x = obj.Method();";
+
+        string expected = """
+            var x = obj
+                .Method();
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.MultiLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+}
 ```
 
-### ✅ The Fix
+---
 
-We treat the `UsingDirectiveSyntax` list as a completely reconstructed layout:
+### `Styly.Tests\CallChain\CallChainPreserveTests.cs`
 
-1. **Strip Leading Newlines** from all items (except the first, which inherits the file header).
-2. **Force Trailing Newlines** on *every* item:
-   * **Intermediate items:** Force exactly **1** newline.
-   * **Last item:** Force exactly **2** newlines (to separate from the namespace).
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.CallChain;
+
+public class CallChainPreserveTests : FormatterTestBase
+{
+    [Fact]
+    public static void CallChain_Preserve_DoesNotModify()
+    {
+        string input = """
+            void M()
+            {
+                var a = obj.Method1().Method2();
+                var b = obj
+                    .Method1()
+                    .Method2();
+            }
+            """;
+        // Note: var b correctly receives a blank line because it is identified
+        // as a 'Heavy' (multi-line) expression by the VerticalRhythmRewriter.
+        string expected = """
+            void M()
+            {
+                var a = obj.Method1().Method2();
+
+                var b = obj
+                    .Method1()
+                    .Method2();
+            }
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.Preserve
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_Preserve_DoesNotBreakComments()
+    {
+        string input = """
+            var result = obj
+                .Method1() // first step
+                .Method2(); // second step
+            """;
+
+        string expected = """
+            var result = obj
+                .Method1() // first step
+                .Method2(); // second step
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.Preserve
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+}
+```
+
+---
+
+### `Styly.Tests\CallChain\CallChainSingleLineTests.cs`
+
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.CallChain;
+
+public class CallChainSingleLineTests : FormatterTestBase
+{
+    [Fact]
+    public static void CallChain_SingleLine_FlattensMultiLineChain()
+    {
+        string input = """
+            void M()
+            {
+                var result = obj
+                    .Method1()
+                    .Method2()
+                    .Method3();
+            }
+            """;
+
+        string expected = """
+            void M()
+            {
+                var result = obj.Method1().Method2().Method3();
+            }
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.SingleLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_SingleLine_PreservesAlreadySingleLine()
+    {
+        string input = "var result = obj.Method1().Method2();";
+        string expected = "var result = obj.Method1().Method2();";
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.SingleLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_SingleLine_IgnoresSingleMemberAccess()
+    {
+        string input = "var x = obj.Property;";
+        string expected = "var x = obj.Property;";
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.SingleLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_SingleLine_HandlesNestedChains()
+    {
+        string input = """
+            void M()
+            {
+                var result = outer
+                    .GetInner()
+                    .Items
+                    .Select(x => x.Value)
+                    .Where(x => x > 0)
+                    .ToList();
+            }
+            """;
+
+        string expected = """
+            void M()
+            {
+                var result = outer.GetInner().Items.Select(x => x.Value).Where(x => x > 0).ToList();
+            }
+            """;
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.SingleLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_SingleLine_RemovesExtraWhitespace()
+    {
+        string input = """
+            var x = obj
+                .Method1 ( )
+                .Method2( arg );
+            """;
+
+        string expected = "var x = obj.Method1().Method2(arg);";
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.SingleLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void CallChain_SingleLine_TwoPartChainIsFlattened()
+    {
+        string input = """
+            var x = obj
+                .Method();
+        """;
+
+        string expected = "var x = obj.Method();";
+
+        FormatOptions options = new()
+        {
+            CallChain = new CallChainOptions
+            {
+                Style = CallChainStyle.SingleLine
+            }
+        };
+
+        AssertFormatting(input, expected, options);
+    }
+}
+```
+
+---
+
+### `Styly.Tests\Initializer\InitializerAnonymousTests.cs`
+
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.Initializer;
+
+public class InitializerAnonymousTests : FormatterTestBase
+{
+    [Fact]
+    public static void Initializers_Anonymous_MultiLine()
+    {
+        string input = "var a = new { X = 1, Y = 2 };";
+
+        string expected = """
+            var a = new
+            {
+                X = 1,
+                Y = 2
+            };
+            """;
+
+        FormatOptions options = new();
+        options.Initializers.AnonymousType = InitializerStyle.MultiLine;
+        AssertFormatting(input, expected, options);
+    }
+}
+```
+
+---
+
+### `Styly.Tests\Initializer\InitializerCollectionTests.cs`
+
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.Initializer;
+
+public class InitializerCollectionTests : FormatterTestBase
+{
+    [Fact]
+    public static void Initializers_Collection_MultiLine()
+    {
+        string input = "var l = new List<int> { 1, 2, 3 };";
+
+        string expected = """
+            var l = new List<int>
+            {
+                1,
+                2,
+                3
+            };
+            """;
+
+        FormatOptions options = new();
+        options.Initializers.Collection = InitializerStyle.MultiLine;
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void Initializers_CollectionExpression_MultiLine()
+    {
+        string input = "var x = [1, 2];";
+
+        string expected = """
+            var x =
+            [
+                1,
+                2
+            ];
+            """;
+
+        FormatOptions options = new();
+        options.Initializers.Collection = InitializerStyle.MultiLine;
+        AssertFormatting(input, expected, options);
+    }
+}
+```
+
+---
+
+### `Styly.Tests\Initializer\InitializerObjectTests.cs`
+
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.Initializer;
+
+public class InitializerObjectTests : FormatterTestBase
+{
+    [Fact]
+    public static void Initializers_Object_MultiLine()
+    {
+        string input = "var o = new Obj { A = 1, B = 2 };";
+
+        string expected = """
+            var o = new Obj
+            {
+                A = 1,
+                B = 2
+            };
+            """;
+
+        FormatOptions options = new();
+        options.Initializers.Object = InitializerStyle.MultiLine;
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void Initializers_Object_SingleLine()
+    {
+        string input = """
+            var o = new Obj
+            {
+                A = 1,
+                B = 2
+            };
+            """;
+
+        string expected = "var o = new Obj { A = 1, B = 2 };";
+
+        FormatOptions options = new();
+        options.Initializers.Object = InitializerStyle.SingleLine;
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void Initializers_Object_Preserve_Comments()
+    {
+        string input = "var o = new Obj { /* comment */ A = 1 };";
+        string expected = "var o = new Obj { /* comment */ A = 1 };";
+
+        FormatOptions options = new();
+        options.Initializers.Object = InitializerStyle.MultiLine;
+
+        AssertFormatting(input, expected, options);
+    }
+}
+```
+
+---
+
+### `Styly.Tests\Modifier\ModifierStaticSafetyTetsts.cs`
+
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.Modifier;
+
+public class ModifierStaticSafetyTests : FormatterTestBase
+{
+    private readonly FormatOptions _options = new()
+    {
+        Modifiers = new ModifiersOptions
+        {
+            MakeStaticWhenPossible = true
+        }
+    };
+    [Fact]
+    public void Modifiers_KeepInstance_AccessingThisField()
+    {
+        string input = "class C { int _f; void M() => _f = 1; }";
+
+        string expected = """
+            class C
+            {
+                int _f;
+                void M() => _f = 1;
+            }
+            """;
+
+        AssertFormatting(input, expected, _options);
+    }
+
+    [Fact]
+    public void Modifiers_MakeStatic_AccessingOtherInstance()
+    {
+        string input = "class C { public int Val; void Update(C other) => other.Val = 5; }";
+
+        string expected = """
+            class C
+            {
+                public int Val;
+                static void Update(C other) => other.Val = 5;
+            }
+            """;
+
+        AssertFormatting(input, expected, _options);
+    }
+
+    [Fact]
+    public void Modifiers_KeepInstance_InterfaceImplementation()
+    {
+        string input = """
+            interface I { void M(); }
+            class C : I { void I.M() { } }
+            """;
+
+        string expected = """
+            interface I
+            {
+                void M();
+            }
+
+            class C : I
+            {
+                void I.M()
+                {
+                }
+            }
+            """;
+
+        AssertFormatting(input, expected, _options);
+    }
+
+    [Fact]
+    public void Modifiers_KeepInstance_VirtualMethods()
+    {
+        string input = "class C { public virtual void M() { } }";
+
+        string expected = """
+            class C
+            {
+                public virtual void M()
+                {
+                }
+            }
+            """;
+
+        AssertFormatting(input, expected, _options);
+    }
+}
+```
+
+---
+
+### `Styly.Tests\Modifier\ModifierStaticTests.cs`
+
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.Modifier;
+
+public class ModifierStaticTests : FormatterTestBase
+{
+    private readonly FormatOptions _options = new()
+    {
+        Modifiers = new ModifiersOptions
+        {
+            MakeStaticWhenPossible = true
+        }
+    };
+    [Fact]
+    public void Modifiers_MakeStatic_SimpleMethod()
+    {
+        string input = "class C { void M() { int x = 1; } }";
+
+        string expected = """
+            class C
+            {
+                static void M()
+                {
+                    int x = 1;
+                }
+            }
+            """;
+
+        AssertFormatting(input, expected, _options);
+    }
+
+    [Fact]
+    public void Modifiers_MakeStatic_WithParameters()
+    {
+        string input = "class C { int Add(int a, int b) => a + b; }";
+
+        string expected = """
+            class C
+            {
+                static int Add(int a, int b) => a + b;
+            }
+            """;
+
+        AssertFormatting(input, expected, _options);
+    }
+
+    [Fact]
+    public void Modifiers_InsertsStaticCorrectly_WithVisibility()
+    {
+        string input = "class C { public void M() { } }";
+
+        string expected = """
+            class C
+            {
+                public static void M()
+                {
+                }
+            }
+            """;
+
+        AssertFormatting(input, expected, _options);
+    }
+}
+```
+
+---
+
+### `Styly.Tests\VerticalRhythm\VerticalRhythmControlTests.cs`
+
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.VerticalRhythm;
+
+public class VerticalRhythmControlFlowTests : FormatterTestBase
+{
+    [Fact]
+    public static void Spacing_EmptyLineBeforeControlFlow_If()
+    {
+        string input = """
+            void M()
+            {
+                Console.WriteLine();
+                if (true) { }
+            }
+            """;
+
+        string expected = """
+            void M()
+            {
+                Console.WriteLine();
+
+                if (true)
+                {
+                }
+            }
+            """;
+
+        FormatOptions options = new();
+        options.Spacing.EmptyLineBeforeControlFlow = true;
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void Spacing_BeforeAndAfter_ControlFlow()
+    {
+        string input = "void M() { Start(); if (true) { } End(); }";
+
+        string expected = """
+            void M()
+            {
+                Start();
+
+                if (true)
+                {
+                }
+
+                End();
+            }
+            """;
+
+        FormatOptions options = new();
+        options.Spacing.EmptyLineBeforeControlFlow = true;
+        options.Spacing.EmptyLineAfterControlFlow = true;
+        AssertFormatting(input, expected, options);
+    }
+}
+```
+
+---
+
+### `Styly.Tests\VerticalRhythm\VerticalRhythmExpressionTests.cs`
+
+```csharp
+using Styly.Configuration;
+
+namespace Styly.Tests.VerticalRhythm;
+
+public class VerticalRhythmExpressionTests : FormatterTestBase
+{
+    [Fact]
+    public static void Isolation_MultiLineTernary_AddsBlankLines()
+    {
+        string input = """
+            void M()
+            {
+                var a = 1;
+                var b = true ? "long_branch_1" : "long_branch_2";
+                var c = 2;
+            }
+            """;
+
+        string expected = """
+            void M()
+            {
+                var a = 1;
+
+                var b = true
+                    ? "long_branch_1"
+                    : "long_branch_2";
+
+                var c = 2;
+            }
+            """;
+
+        FormatOptions options = new();
+        options.Ternary.Style = TernaryStyle.MultiLine;
+        options.Spacing.EmptyLineAroundMultiLineExpression = true;
+
+        AssertFormatting(input, expected, options);
+    }
+
+    [Fact]
+    public static void Isolation_MultiLineObjectInitializer_AddsBlankLine()
+    {
+        string input = """
+            void M()
+            {
+                var x = 10;
+                var o = new Obj { A = 1, B = 2 };
+                var y = 20;
+            }
+            """;
+
+        string expected = """
+            void M()
+            {
+                var x = 10;
+
+                var o = new Obj
+                {
+                    A = 1,
+                    B = 2
+                };
+
+                var y = 20;
+            }
+            """;
+
+        FormatOptions options = new();
+        options.Initializers.Object = InitializerStyle.MultiLine;
+        options.Spacing.EmptyLineAroundMultiLineExpression = true;
+
+        AssertFormatting(input, expected, options);
+    }
+}
 ```
 
 ---
