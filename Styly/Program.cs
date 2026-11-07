@@ -15,26 +15,38 @@ public class Program
     {
         RootCommand rootCommand = new("A .NET code formatter. Automatically finds .styly.toml and processes C# files.");
 
-        rootCommand.SetHandler(HandleProjectFormatting);
+        rootCommand.SetAction(async (parseResult, cancellationToken) => await HandleProjectFormatting());
 
-        Argument<FileInfo> fileArgument = new Argument<FileInfo>("file", "The C# file to format.").ExistingOnly();
-        Option<NamespaceFormat> namespaceOption = new("--namespace-format", () => NamespaceFormat.File, "Namespace format override.");
-        Command formatCommand = new("format", "Formats a single file without project context.");
-        formatCommand.AddArgument(fileArgument);
-        formatCommand.AddOption(namespaceOption);
+        Argument<FileInfo> fileArgument = new("file") { Description = "The C# file to format." };
+        fileArgument.AcceptExistingOnly();
 
-        formatCommand.SetHandler(async (file, ns) => await HandleSingleFileReformat(file, new FormatOptions
+        Option<NamespaceFormat> namespaceOption = new("--namespace-format")
         {
-            Namespace = ns
-        }), fileArgument, namespaceOption);
+            Description = "Namespace format override.",
+            DefaultValueFactory = _ => NamespaceFormat.File
+        };
 
-        rootCommand.AddCommand(formatCommand);
+        Command formatCommand = new("format", "Formats a single file without project context.");
+        formatCommand.Arguments.Add(fileArgument);
+        formatCommand.Options.Add(namespaceOption);
+
+        formatCommand.SetAction(async (parseResult, cancellationToken) =>
+        {
+            FileInfo? file = parseResult.GetValue(fileArgument);
+            NamespaceFormat ns = parseResult.GetValue(namespaceOption);
+            if (file is not null)
+            {
+                await HandleSingleFileReformat(file, new FormatOptions { Namespace = ns });
+            }
+        });
+
+        rootCommand.Subcommands.Add(formatCommand);
 
         Command installPathCommand = new("install-path", "Adds the tool to the user's PATH.");
-        installPathCommand.SetHandler(CliInstaller.InstallPath);
-        rootCommand.AddCommand(installPathCommand);
+        installPathCommand.SetAction(parseResult => CliInstaller.InstallPath());
+        rootCommand.Subcommands.Add(installPathCommand);
 
-        return await rootCommand.InvokeAsync(args);
+        return await rootCommand.Parse(args).InvokeAsync();
     }
 
     private static async Task HandleProjectFormatting()

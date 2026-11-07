@@ -1,3 +1,233 @@
+### `Styly\Program.cs`
+
+```csharp
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.FileSystemGlobbing;
+using Styly.Configuration;
+using Styly.Core;
+using System.CommandLine;
+using System.Text.Json;
+using Tomlyn;
+
+namespace Styly;
+
+public class Program
+{
+    public static async Task<int> Main(string[] args)
+    {
+        RootCommand rootCommand = new("A .NET code formatter. Automatically finds .styly.toml and processes C# files.");
+
+        rootCommand.SetAction(async (parseResult, cancellationToken) => await HandleProjectFormatting());
+
+        Argument<FileInfo> fileArgument = new("file") { Description = "The C# file to format." };
+        fileArgument.AcceptExistingOnly();
+
+        Option<NamespaceFormat> namespaceOption = new("--namespace-format")
+        {
+            Description = "Namespace format override.",
+            DefaultValueFactory = _ => NamespaceFormat.File
+        };
+
+        Command formatCommand = new("format", "Formats a single file without project context.");
+        formatCommand.Arguments.Add(fileArgument);
+        formatCommand.Options.Add(namespaceOption);
+
+        formatCommand.SetAction(async (parseResult, cancellationToken) =>
+        {
+            FileInfo? file = parseResult.GetValue(fileArgument);
+            NamespaceFormat ns = parseResult.GetValue(namespaceOption);
+            if (file is not null)
+            {
+                await HandleSingleFileReformat(file, new FormatOptions { Namespace = ns });
+            }
+        });
+
+        rootCommand.Subcommands.Add(formatCommand);
+
+        Command installPathCommand = new("install-path", "Adds the tool to the user's PATH.");
+        installPathCommand.SetAction(parseResult => CliInstaller.InstallPath());
+        rootCommand.Subcommands.Add(installPathCommand);
+
+        return await rootCommand.Parse(args).InvokeAsync();
+    }
+
+    private static async Task HandleProjectFormatting()
+    {
+        string currentDir = Directory.GetCurrentDirectory();
+        string? configPath = FindConfigFile(currentDir);
+
+        if (configPath is null)
+        {
+            WriteError("Error: Configuration file '.styly.toml' not found.");
+            return;
+        }
+
+        StylyConfig config = LoadConfig(configPath);
+        string baseDir = Path.GetDirectoryName(configPath)!;
+
+        bool flowControl = FindAllMatchingFiles(config, baseDir, out List<string> filePaths);
+
+        if (!flowControl)
+        {
+            return;
+        }
+
+        Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
+        using AdhocWorkspace workspace = CreateSemanticWorkspace();
+        Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
+
+        project = await AddFilesToTheProject(config, filePaths, project);
+    }
+
+    private static bool FindAllMatchingFiles(StylyConfig config, string baseDir, out List<string> filePaths)
+    {
+        Matcher matcher = new();
+
+        if (config.Include.Count == 0)
+        {
+            _ = matcher.AddInclude("**/*.cs");
+        }
+        else
+        {
+            config.Include.ForEach(p => matcher.AddInclude(p));
+        }
+
+        config.Exclude.ForEach(p => matcher.AddExclude(p));
+
+        filePaths = [.. matcher.GetResultsInFullPath(baseDir)];
+
+        if (filePaths.Count == 0)
+        {
+            Console.WriteLine("No files matched the inclusion patterns.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static async Task<Project> AddFilesToTheProject(StylyConfig config, List<string> filePaths, Project project)
+    {
+        Dictionary<DocumentId, string> documentIds = [];
+
+        foreach (string path in filePaths)
+        {
+            SourceText sourceText = SourceText.From(await File.ReadAllTextAsync(path));
+            Document document = project.AddDocument(Path.GetFileName(path), sourceText, filePath: path);
+            project = document.Project;
+
+            documentIds.Add(document.Id, path);
+        }
+
+        Console.WriteLine("Formatting files...");
+
+        foreach (KeyValuePair<DocumentId, string> entry in documentIds)
+        {
+            Document doc = project.GetDocument(entry.Key)!;
+            await ProcessDocument(doc, config.Format, entry.Value);
+            project = doc.Project.Solution.GetProject(project.Id)!;
+        }
+
+        Console.WriteLine("Done.");
+        return project;
+    }
+
+    private static AdhocWorkspace CreateSemanticWorkspace()
+    {
+        AdhocWorkspace workspace = new();
+        IEnumerable<PortableExecutableReference> references = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+            .Split(Path.PathSeparator)
+            .Where(path => !string.IsNullOrEmpty(path) && File.Exists(path))
+            .Select(path => MetadataReference.CreateFromFile(path));
+
+        _ = workspace.AddProject("StylyContext", LanguageNames.CSharp).WithMetadataReferences(references);
+
+        return workspace;
+    }
+
+    private static async Task ProcessDocument(Document document, FormatOptions options, string filePath)
+    {
+        string fileName = Path.GetFileName(filePath);
+
+        try
+        {
+            string originalText = (await document.GetTextAsync()).ToString();
+            Document formattedDoc = await CodeFormatter.ReformatAsync(document, options);
+            string newText = (await formattedDoc.GetTextAsync()).ToString();
+
+            if (originalText != newText)
+            {
+                await File.WriteAllTextAsync(filePath, newText);
+                Console.WriteLine($"  Formatted: {fileName}");
+            }
+            else
+            {
+                Console.WriteLine($"  Unchanged: {fileName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteError($"  Failed:    {fileName} ({ex.Message})");
+        }
+    }
+
+    private static async Task HandleSingleFileReformat(FileInfo file, FormatOptions options)
+    {
+        Console.WriteLine($"Processing {file.Name}...");
+        string source = await File.ReadAllTextAsync(file.FullName);
+        string formatted = await CodeFormatter.ReformatScriptAsync(source, options);
+
+        if (source != formatted)
+        {
+            await File.WriteAllTextAsync(file.FullName, formatted);
+            Console.WriteLine("  Status: Formatted");
+        }
+        else
+        {
+            Console.WriteLine("  Status: Unchanged");
+        }
+    }
+
+    private static StylyConfig LoadConfig(string path)
+    {
+        string toml = File.ReadAllText(path);
+        TomlSerializerOptions options = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+        return TomlSerializer.Deserialize<StylyConfig>(toml, options) ?? new StylyConfig();
+    }
+
+    private static string? FindConfigFile(string dir)
+    {
+        DirectoryInfo? current = new(dir);
+
+        while (current is not null)
+        {
+            string path = Path.Combine(current.FullName, ".styly.toml");
+
+            if (File.Exists(path))
+            {
+                return path;
+            }
+
+            current = current.Parent;
+        }
+
+        return null;
+    }
+
+    private static void WriteError(string msg)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine(msg);
+        Console.ResetColor();
+    }
+}
+```
+
+---
+
 ### `Styly\Styly.csproj`
 
 ```xml
@@ -22,74 +252,34 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\cs\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\de\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\es\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\fr\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\it\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\ja\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\ko\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\Microsoft.Build.Locator.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.exe" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.exe.config" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\Microsoft.IO.Redist.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\Newtonsoft.Json.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\pl\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\pt-BR\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\ru\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\System.Buffers.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\System.Collections.Immutable.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\System.CommandLine.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\System.Memory.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\System.Numerics.Vectors.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\System.Runtime.CompilerServices.Unsafe.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\System.Threading.Tasks.Extensions.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\tr\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\zh-Hans\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-net472\zh-Hant\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\cs\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\de\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\es\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\fr\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\it\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\ja\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\ko\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\Microsoft.Build.Locator.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.deps.json" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.runtimeconfig.json" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\Newtonsoft.Json.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\pl\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\pt-BR\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\ru\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\System.Collections.Immutable.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\System.CommandLine.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\tr\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\zh-Hans\System.CommandLine.resources.dll" />
-	  <Content Remove="C:\Users\Parsa\.nuget\packages\microsoft.codeanalysis.workspaces.msbuild\5.0.0\contentFiles\any\any\BuildHost-netcore\zh-Hant\System.CommandLine.resources.dll" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<!-- MSBuild.Locator -->
 		<PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
 
 		<!-- Fix MSBL001: Explicitly exclude all MSBuild-related runtime assets -->
-		<PackageReference Include="Microsoft.Build" Version="17.11.4" ExcludeAssets="runtime" PrivateAssets="all" />
-		<PackageReference Include="Microsoft.Build.Framework" Version="17.11.31" ExcludeAssets="runtime" PrivateAssets="all" />
-		<PackageReference Include="Microsoft.NET.StringTools" Version="17.11.4" ExcludeAssets="runtime" PrivateAssets="all" />
-		<PackageReference Include="NuGet.Frameworks" Version="6.11.1" ExcludeAssets="runtime" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.Build" Version="18.7.1" ExcludeAssets="runtime" PrivateAssets="all">
+		  <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Build.Framework" Version="18.7.1" ExcludeAssets="runtime" PrivateAssets="all">
+		  <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.NET.StringTools" Version="18.7.1" ExcludeAssets="runtime" PrivateAssets="all">
+		  <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="NuGet.Frameworks" Version="7.6.0" ExcludeAssets="runtime" PrivateAssets="all">
+		  <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
 
 		<!-- Roslyn packages - ALL version 5.0.0 -->
-		<PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" />
-		<PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.3.0" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.3.0" />
 
 		<!-- Other packages -->
-		<PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.3" />
-		<PackageReference Include="Microsoft.Extensions.ObjectPool" Version="8.0.0" />
-		<PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-		<PackageReference Include="YamlDotNet" Version="16.3.0" />
+		<PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.ObjectPool" Version="10.0.9" />
+		<PackageReference Include="System.CommandLine" Version="2.0.9" />
+		<PackageReference Include="Tomlyn" Version="2.8.0" />
 	</ItemGroup>
 
 	<!-- Only remove Microsoft.Extensions.Logging.Abstractions -->
@@ -513,7 +703,7 @@ public static class CodeFormatter
     public static async Task<Document> ReformatAsync(Document document, FormatOptions formatOptions)
     {
         SyntaxNode root = await document.GetSyntaxRootAsync() ?? throw new InvalidOperationException("Could not get syntax root.");
-        // Fail-Fast: Verify syntax is valid before formatting
+
         IEnumerable<Diagnostic> diagnostics = root.GetDiagnostics();
 
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
@@ -522,12 +712,9 @@ public static class CodeFormatter
             throw new InvalidOperationException($"Syntax error at {firstError.Location.GetLineSpan().StartLinePosition}: {firstError.GetMessage()}");
         }
 
-        // 1. Syntactic Cleaning (Layout)
         root = ApplyBasicCleaning(root);
         document = document.WithSyntaxRoot(root);
-        // 2. Semantic Transformations (var, Any, usings)
         document = await ApplySemanticRewritersAsync(document, formatOptions);
-        // 3. Final Layout Polish
         root = await document.GetSyntaxRootAsync() ?? throw new InvalidOperationException();
         root = ApplySyntacticRewriters(root, formatOptions);
 
@@ -555,7 +742,6 @@ public static class CodeFormatter
         return (await formatted.GetTextAsync()).ToString();
     }
 
-    // Kept for tests
     public static string Reformat(string sourceText, FormatOptions formatOptions)
     {
         return ReformatScriptAsync(sourceText, formatOptions).GetAwaiter().GetResult();
@@ -607,7 +793,7 @@ public static class CodeFormatter
 
         if (options.Usings.RemoveUnused)
         {
-            return await NameMe(ref document);
+            return await NameMe(document);
         }
 
         return document;
@@ -620,7 +806,7 @@ public static class CodeFormatter
             : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
     }
 
-    private static async Task<Document> NameMe(ref Document document)
+    private static async Task<Document> NameMe(Document document)
     {
         (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
 
@@ -635,9 +821,7 @@ public static class CodeFormatter
             return document;
         }
 
-        document = document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
-
-        return document;
+        return document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
     }
 
     private static async Task<(SemanticModel, SyntaxNode)> GetContext(Document document)
@@ -669,230 +853,7 @@ public static class CodeFormatter
         }
 
         root = new TrailingTriviaTrimmer().Visit(root);
-        return new TokenSpacingCleanupRewriter().Visit(root)!;
-    }
-}
-```
-
----
-
-### `Styly\Core\Program.cs`
-
-```csharp
-using System.CommandLine;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Text;
-using Microsoft.Extensions.FileSystemGlobbing;
-using Styly.Configuration;
-using YamlDotNet.Serialization;
-
-namespace Styly.Core;
-
-public class Program
-{
-    public static async Task<int> Main(string[] args)
-    {
-        RootCommand rootCommand = new("A .NET code formatter. Automatically finds .styly.yaml and processes C# files.");
-
-        rootCommand.SetHandler(HandleProjectFormatting);
-        // Standalone 'format' command for single files
-        Argument<FileInfo> fileArgument = new Argument<FileInfo>("file", "The C# file to format.").ExistingOnly();
-        Option<NamespaceFormat> namespaceOption = new("--namespace-format", () => NamespaceFormat.File, "Namespace format override.");
-        Command formatCommand = new("format", "Formats a single file without project context.");
-        formatCommand.AddArgument(fileArgument);
-        formatCommand.AddOption(namespaceOption);
-
-        formatCommand.SetHandler(async (file, ns) => await HandleSingleFileReformat(file, new FormatOptions
-        {
-            Namespace = ns
-        }), fileArgument, namespaceOption);
-
-        rootCommand.AddCommand(formatCommand);
-        // Path installation helper
-        Command installPathCommand = new("install-path", "Adds the tool to the user's PATH.");
-        installPathCommand.SetHandler(CliInstaller.InstallPath);
-        rootCommand.AddCommand(installPathCommand);
-
-        return await rootCommand.InvokeAsync(args);
-    }
-
-    private static async Task HandleProjectFormatting()
-    {
-        string currentDir = Directory.GetCurrentDirectory();
-        string? configPath = FindConfigFile(currentDir);
-
-        if (configPath is null)
-        {
-            WriteError("Error: Configuration file '.styly.yaml' not found.");
-            return;
-        }
-
-        StylyConfig config = LoadConfig(configPath);
-        string baseDir = Path.GetDirectoryName(configPath)!;
-        // 1. Find all matching files
-        bool flowControl = FindAllMatchingFiles(config, baseDir, out List<string> filePaths);
-
-        if (!flowControl)
-        {
-            return;
-        }
-
-        // 2. Build the Semantic Workspace
-        Console.WriteLine($"Found {filePaths.Count} files. Loading semantic context...");
-        using AdhocWorkspace workspace = CreateSemanticWorkspace();
-        Project project = workspace.CurrentSolution.GetProject(workspace.CurrentSolution.ProjectIds[0])!;
-        // 3. Add files to the project
-        project = await AddFilesToTheProject(config, filePaths, project);
-    }
-
-    private static bool FindAllMatchingFiles(StylyConfig config, string baseDir, out List<string> filePaths)
-    {
-        Matcher matcher = new();
-
-        if (config.Include.Count == 0)
-        {
-            _ = matcher.AddInclude("**/*.cs");
-        }
-        else
-        {
-            config.Include.ForEach(p => matcher.AddInclude(p));
-        }
-
-        config.Exclude.ForEach(p => matcher.AddExclude(p));
-
-        filePaths = [ ..matcher.GetResultsInFullPath(baseDir) ];
-
-        if (filePaths.Count == 0)
-        {
-            Console.WriteLine("No files matched the inclusion patterns.");
-            return false;
-        }
-
-        return true;
-    }
-
-    private static async Task<Project> AddFilesToTheProject(StylyConfig config, List<string> filePaths, Project project)
-    {
-        Dictionary<DocumentId, string> documentIds = [];
-
-        foreach (string path in filePaths)
-        {
-            SourceText sourceText = SourceText.From(await File.ReadAllTextAsync(path));
-            Document document = project.AddDocument(Path.GetFileName(path), sourceText, filePath: path);
-            project = document.Project;
-
-            documentIds.Add(document.Id, path);
-        }
-
-        // 4. Process each document
-        Console.WriteLine("Formatting files...");
-
-        foreach (KeyValuePair<DocumentId, string> entry in documentIds)
-        {
-            Document doc = project.GetDocument(entry.Key)!;
-            await ProcessDocument(doc, config.Format, entry.Value);
-            // Refresh project state to maintain semantic accuracy across rewrites
-            project = doc.Project.Solution.GetProject(project.Id)!;
-        }
-
-        Console.WriteLine("Done.");
-        return project;
-    }
-
-    private static AdhocWorkspace CreateSemanticWorkspace()
-    {
-        AdhocWorkspace workspace = new();
-        // Feed the workspace the same DLLs this tool is running on (.NET 10 Core)
-        IEnumerable<PortableExecutableReference> references = ((string? )AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
-            .Split(Path.PathSeparator)
-            .Where(path => !string.IsNullOrEmpty(path) && File.Exists(path))
-            .Select(path => MetadataReference.CreateFromFile(path));
-
-        _ = workspace.AddProject("StylyContext", LanguageNames.CSharp).WithMetadataReferences(references);
-
-        return workspace;
-    }
-
-    private static async Task ProcessDocument(Document document, FormatOptions options, string filePath)
-    {
-        string fileName = Path.GetFileName(filePath);
-
-        try
-        {
-            string originalText = (await document.GetTextAsync()).ToString();
-            Document formattedDoc = await CodeFormatter.ReformatAsync(document, options);
-            string newText = (await formattedDoc.GetTextAsync()).ToString();
-
-            if (originalText != newText)
-            {
-                await File.WriteAllTextAsync(filePath, newText);
-                Console.WriteLine($"  Formatted: {fileName}");
-            }
-            else
-            {
-                Console.WriteLine($"  Unchanged: {fileName}");
-            }
-        }
-        catch (Exception ex)
-        {
-            WriteError($"  Failed:    {fileName} ({ex.Message})");
-        }
-    }
-
-    private static async Task HandleSingleFileReformat(FileInfo file, FormatOptions options)
-    {
-        Console.WriteLine($"Processing {file.Name}...");
-        string source = await File.ReadAllTextAsync(file.FullName);
-        string formatted = await CodeFormatter.ReformatScriptAsync(source, options);
-
-        if (source != formatted)
-        {
-            await File.WriteAllTextAsync(file.FullName, formatted);
-            Console.WriteLine("  Status: Formatted");
-        }
-        else
-        {
-            Console.WriteLine("  Status: Unchanged");
-        }
-    }
-
-    private static StylyConfig LoadConfig(string path)
-    {
-        string yaml = File.ReadAllText(path);
-        return new DeserializerBuilder().Build().Deserialize<StylyConfig>(yaml);
-    }
-
-    private static string? FindConfigFile(string dir)
-    {
-        DirectoryInfo? current = new(dir);
-
-        while (current is not null)
-        {
-            string p1 = Path.Combine(current.FullName, ".styly.yaml");
-
-            if (File.Exists(p1))
-            {
-                return p1;
-            }
-
-            string p2 = Path.Combine(current.FullName, ".styly.yml");
-
-            if (File.Exists(p2))
-            {
-                return p2;
-            }
-
-            current = current.Parent;
-        }
-
-        return null;
-    }
-
-    private static void WriteError(string msg)
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine(msg);
-        Console.ResetColor();
+        return new TokenSpacingCleanupRewriter().Visit(root);
     }
 }
 ```
@@ -4315,23 +4276,33 @@ public class SafetyTests : FormatterTestBase
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<IsPackable>false</IsPackable>
-		<!-- Disable the strict MSBuildLocator copy check in tests -->
+		<!-- Disable strict MSBuildLocator copy check in tests -->
 		<DisableMSBuildAssemblyCopyCheck>true</DisableMSBuildAssemblyCopyCheck>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="coverlet.collector" Version="6.0.4" />
-		<PackageReference Include="FluentAssertions" Version="8.8.0" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageReference Include="coverlet.collector" Version="10.0.1">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="FluentAssertions" Version="8.10.0" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
 		<PackageReference Include="NSubstitute" Version="5.3.0" />
-		<PackageReference Include="xunit" Version="2.9.3" />
-		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
 
 		<!-- Fix MSBL001: Ensure MSBuild assemblies are not copied to output -->
-		<PackageReference Include="Microsoft.Build" Version="17.11.4" ExcludeAssets="runtime" PrivateAssets="all" />
-		<PackageReference Include="Microsoft.Build.Framework" Version="17.11.31" ExcludeAssets="runtime" PrivateAssets="all" />
-		<PackageReference Include="Microsoft.NET.StringTools" Version="17.11.4" ExcludeAssets="runtime" PrivateAssets="all" />
-		<PackageReference Include="NuGet.Frameworks" Version="6.11.1" ExcludeAssets="runtime" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.Build" Version="18.7.1" ExcludeAssets="runtime" PrivateAssets="all">
+		  <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Build.Framework" Version="18.7.1" ExcludeAssets="runtime" PrivateAssets="all">
+		  <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.NET.StringTools" Version="18.7.1" ExcludeAssets="runtime" PrivateAssets="all">
+		  <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="NuGet.Frameworks" Version="7.6.0" ExcludeAssets="runtime" PrivateAssets="all">
+		  <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="xunit.v3" Version="3.2.2" />
 	</ItemGroup>
 
 	<ItemGroup>

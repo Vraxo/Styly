@@ -13,7 +13,7 @@ public static class CodeFormatter
     public static async Task<Document> ReformatAsync(Document document, FormatOptions formatOptions)
     {
         SyntaxNode root = await document.GetSyntaxRootAsync() ?? throw new InvalidOperationException("Could not get syntax root.");
-        // Fail-Fast: Verify syntax is valid before formatting
+
         IEnumerable<Diagnostic> diagnostics = root.GetDiagnostics();
 
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
@@ -22,12 +22,9 @@ public static class CodeFormatter
             throw new InvalidOperationException($"Syntax error at {firstError.Location.GetLineSpan().StartLinePosition}: {firstError.GetMessage()}");
         }
 
-        // 1. Syntactic Cleaning (Layout)
         root = ApplyBasicCleaning(root);
         document = document.WithSyntaxRoot(root);
-        // 2. Semantic Transformations (var, Any, usings)
         document = await ApplySemanticRewritersAsync(document, formatOptions);
-        // 3. Final Layout Polish
         root = await document.GetSyntaxRootAsync() ?? throw new InvalidOperationException();
         root = ApplySyntacticRewriters(root, formatOptions);
 
@@ -55,7 +52,6 @@ public static class CodeFormatter
         return (await formatted.GetTextAsync()).ToString();
     }
 
-    // Kept for tests
     public static string Reformat(string sourceText, FormatOptions formatOptions)
     {
         return ReformatScriptAsync(sourceText, formatOptions).GetAwaiter().GetResult();
@@ -107,7 +103,7 @@ public static class CodeFormatter
 
         if (options.Usings.RemoveUnused)
         {
-            return await NameMe(ref document);
+            return await NameMe(document);
         }
 
         return document;
@@ -120,7 +116,7 @@ public static class CodeFormatter
             : new ExplicitTypeToVarRewriter(model, options.Variables.UseVar.Value).Visit(root);
     }
 
-    private static async Task<Document> NameMe(ref Document document)
+    private static async Task<Document> NameMe(Document document)
     {
         (SemanticModel? model, SyntaxNode? root) = await GetContext(document);
 
@@ -135,9 +131,7 @@ public static class CodeFormatter
             return document;
         }
 
-        document = document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
-
-        return document;
+        return document.WithSyntaxRoot(root.RemoveNodes(unused, SyntaxRemoveOptions.KeepNoTrivia)!);
     }
 
     private static async Task<(SemanticModel, SyntaxNode)> GetContext(Document document)
@@ -169,6 +163,6 @@ public static class CodeFormatter
         }
 
         root = new TrailingTriviaTrimmer().Visit(root);
-        return new TokenSpacingCleanupRewriter().Visit(root)!;
+        return new TokenSpacingCleanupRewriter().Visit(root);
     }
 }

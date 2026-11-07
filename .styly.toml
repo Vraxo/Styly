@@ -1,0 +1,46 @@
+[format]
+namespace = "file"
+
+[format.usings]
+sort = "alphabetical"
+remove_unused = false
+
+[format.variables]
+use_var = "never"
+
+[format.collections]
+prefer_expression = true
+
+[format.initializers]
+object = "multiline"
+collection = "singleline"
+anonymous_type = "multiline"
+
+[format.ternary]
+style = "multiline"
+
+[format.logical_expressions]
+style = "preserve"
+
+[format.raw_strings]
+prefer_raw_for_multiline = true
+
+[format.spacing]
+empty_line_before_control_flow = true
+empty_line_after_control_flow = true
+empty_line_around_multiline_expression = true
+
+[format.modifiers]
+make_static_when_possible = true
+
+[format.optimization]
+prefer_length_count_over_any = true
+
+include = [
+    "Styly/**/*.cs",
+    "Styly.Tests/**/*.cs"
+]
+
+exclude = [
+    "**/obj/**"
+]
